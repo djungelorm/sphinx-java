@@ -121,8 +121,8 @@ def test_qualified_names(build):
     refs = [(ref.astext(), ref.get('refid') or ref.get('refuri'))
             for ref in node.findall(lambda n: 'refuri' in n or 'refid' in n)]
     assert refs == [
-        ('java.util', 'https://docs.oracle.com/javase/8/docs/api/java/util/package-summary.html'),
-        ('List', 'https://docs.oracle.com/javase/8/docs/api/java/util/List.html'),
+        ('java.util', 'https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/package-summary.html'),
+        ('List', 'https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html'),
         ('com.example', 'package-com.example'),
         ('Box', 'com.example.Box'),
     ]
@@ -134,8 +134,8 @@ def test_references(app):
     assert refs['Box.wrap'] == 'com.example.Box.wrap(U[], String)'
     assert refs['getName'] == 'com.example.Box.getName()'
     assert refs['Box.SIZE'] == 'com.example.Box.SIZE'
-    assert refs['String'] == 'https://docs.oracle.com/javase/8/docs/api/java/lang/String.html'
-    assert refs['java.util.List'] == 'https://docs.oracle.com/javase/8/docs/api/java/util/List.html'
+    assert refs['String'] == 'https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html'
+    assert refs['java.util.List'] == 'https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html'
 
 
 def test_signature_references(app):
@@ -143,17 +143,17 @@ def test_signature_references(app):
     node = next(node for node in doctree.findall(addnodes.desc_signature) if 'com.example.Box' in node['ids'])
     refs = {ref.astext(): ref.get('refid') or ref.get('refuri') for ref in node.findall(lambda n: 'refuri' in n
                                                                                           or 'refid' in n)}
-    assert refs['Comparable'] == 'https://docs.oracle.com/javase/8/docs/api/java/lang/Comparable.html'
+    assert refs['Comparable'] == 'https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Comparable.html'
     assert refs['Base'] == 'com.example.Base'
     assert refs['Other'] == 'com.example.Other'
-    assert refs['Serializable'] == 'https://docs.oracle.com/javase/8/docs/api/java/io/Serializable.html'
+    assert refs['Serializable'] == 'https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/io/Serializable.html'
 
 
 def test_imported_type(build):
     app = build('.. java:import:: java.util List\n\n.. java:method:: List get()\n   :outertype: Foo\n')
     doctree = resolved_doctree(app)
     refs = {ref.astext(): ref['refuri'] for ref in doctree.findall(lambda n: 'refuri' in n)}
-    assert refs['List'] == 'https://docs.oracle.com/javase/8/docs/api/java/util/List.html'
+    assert refs['List'] == 'https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html'
 
 
 def test_index_entries(app):
@@ -205,7 +205,7 @@ def test_any_reference(build):
 def test_any_reference_external(build):
     app = build(':any:`String`')
     assert warnings(app) == []
-    assert references(app) == {'String': 'https://docs.oracle.com/javase/8/docs/api/java/lang/String.html'}
+    assert references(app) == {'String': 'https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html'}
 
 
 def test_duplicate_warning(build):
@@ -328,15 +328,15 @@ def test_generic_types_in_fields(build):
     fields = next(resolved_doctree(app).findall(nodes.field_list))
     assert {ref.astext(): ref['refuri'] for ref in fields.findall(nodes.reference)} == {
         'org.javatuples.Triplet<Double,Double,Double>': 'https://www.javatuples.org/apidocs/org/javatuples/Triplet.html',
-        'java.util.List<String>': 'https://docs.oracle.com/javase/8/docs/api/java/util/List.html',
+        'java.util.List<String>': 'https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html',
     }
 
 
 @pytest.mark.parametrize('rst, text, target', [
-    (':java:type:`List<String>`', 'List<String>', 'https://docs.oracle.com/javase/8/docs/api/java/util/List.html'),
-    (':java:type:`~java.util.List<String>`', 'List', 'https://docs.oracle.com/javase/8/docs/api/java/util/List.html'),
+    (':java:type:`List<String>`', 'List<String>', 'https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html'),
+    (':java:type:`~java.util.List<String>`', 'List', 'https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html'),
     (':java:type:`the list <java.util.List>`', 'the list',
-     'https://docs.oracle.com/javase/8/docs/api/java/util/List.html'),
+     'https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html'),
 ])
 def test_generic_type_reference(build, rst, text, target):
     app = build('.. java:import:: java.util List\n\n' + rst)
@@ -345,7 +345,7 @@ def test_generic_type_reference(build, rst, text, target):
 
 
 
-API = 'https://docs.oracle.com/javase/8/docs/api/'
+API = 'https://docs.oracle.com/en/java/javase/25/docs/api/java.base/'
 
 
 @pytest.mark.parametrize('directive, sig, node_id, text, refs', [

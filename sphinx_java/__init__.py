@@ -21,13 +21,15 @@ from typing import Any
 from sphinx.application import Sphinx
 
 from .domain import JavaDomain, suppress_missing_reference
-from .extdoc import javadoc_role
+from .extdoc import check_config, javadoc_role
 
 
 def setup(app: Sphinx) -> dict[str, Any]:
     app.add_domain(JavaDomain)
 
     app.add_config_value('javadoc_url_map', {}, 'env', types=(dict,))
+    app.add_config_value('javadoc_java_se_version', 25, 'env', types=(int,))
+    app.connect('config-inited', check_config)
     app.add_role('java:extdoc', javadoc_role)
     app.connect('warn-missing-reference', suppress_missing_reference)
 

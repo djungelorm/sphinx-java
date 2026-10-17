@@ -22,18 +22,35 @@ from typing import Any
 from docutils import nodes, utils
 from docutils.nodes import Node, system_message
 from docutils.parsers.rst.states import Inliner
+from sphinx.application import Sphinx
 from sphinx.config import Config
+from sphinx.errors import ConfigError
+from sphinx.locale import __
 from sphinx.util.nodes import split_explicit_title
 
+from .javase_modules import JAVA_SE_MODULES
+
 # The Java SE packages, which link to the Java SE docs unless javadoc_url_map has them
-JAVA_SE_DOCS = ('https://docs.oracle.com/javase/8/docs/api', 'javadoc8')
-JAVA_SE_PACKAGES = ('java', 'javax', 'org.xml', 'org.w3c')
+JAVA_SE_PACKAGES = ('java', 'javax', 'org.ietf', 'org.xml', 'org.w3c')
+
+
+def check_config(app: Sphinx, config: Config) -> None:
+    version = config.javadoc_java_se_version
+    if version != 8 and version < 11:
+        raise ConfigError(__('javadoc_java_se_version must be 8, or 11 or later, not %r') % version)
+
+
+def _java_se_docs(version: int) -> tuple[str, str]:
+    """ The base URL and docs type of the Java SE docs """
+    if version == 8:
+        return 'https://docs.oracle.com/javase/8/docs/api', 'javadoc8'
+    return f'https://docs.oracle.com/en/java/javase/{version}/docs/api', 'javadoc11'
 
 
 def _find_source(config: Config, text: str) -> tuple[str, str] | None:
     """ The base URL and docs type for the longest package that contains text """
     javadoc_url_map: dict[str, tuple[str, str]] = {
-        **{package: JAVA_SE_DOCS for package in JAVA_SE_PACKAGES},
+        **dict.fromkeys(JAVA_SE_PACKAGES, _java_se_docs(config.javadoc_java_se_version)),
         **{package: source for package, source in config.javadoc_url_map.items() if source},
     }
     # Note: The Java SE prefixes, such as java, are not packages themselves.
@@ -44,15 +61,29 @@ def _find_source(config: Config, text: str) -> tuple[str, str] | None:
     return javadoc_url_map[max(matches, key=len)]
 
 
+def _javadoc_anchor(ext_type: str, cls: str, method: str) -> str:
+    if ext_type == 'javadoc8':
+        return re.sub(r'[()]', '-', method)
+    if ext_type == 'javadoc11':
+        name, _, params = method.partition('(')
+        # Constructors are named <init>
+        if name == cls.rpartition('.')[2]:
+            name = '%3Cinit%3E'
+        return name + '(' + params.replace(' ', '')
+    return method
+
+
 def _build_url(baseurl: str, ext_type: str, package: str, cls: str, method: str | None) -> str:
     if not baseurl.endswith('/'):
         baseurl = baseurl + '/'
+    if ext_type == 'javadoc11' and package in JAVA_SE_MODULES:
+        baseurl += JAVA_SE_MODULES[package] + '/'
     path = baseurl + package.replace('.', '/') + '/'
 
-    if ext_type in ('javadoc', 'javadoc8'):
+    if ext_type in ('javadoc', 'javadoc8', 'javadoc11'):
         url = path + (cls or 'package-summary') + '.html'
         if method:
-            url += '#' + (method if ext_type == 'javadoc' else re.sub(r'[()]', '-', method))
+            url += '#' + _javadoc_anchor(ext_type, cls, method)
     elif ext_type == 'sphinx':
         url = path + (cls.replace('.', '-') or 'package-index') + '.html'
         if method:
