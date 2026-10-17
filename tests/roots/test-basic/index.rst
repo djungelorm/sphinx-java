@@ -37,7 +37,7 @@ Java Examples
 
    .. java:method:: public Pair<P, P> getBounds()
 
-   .. java:method:: public static Polygon<Point> of(Point... points)
+   .. java:method:: @SafeVarargs public static Polygon<Point> of(final Point... points)
 
 .. java:type:: public class Point
 

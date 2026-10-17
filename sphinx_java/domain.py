@@ -77,6 +77,8 @@ PRIMITIVE_TYPES = frozenset({'boolean', 'byte', 'char', 'short', 'int', 'long', 
 class JavaObject(ObjectDescription[str]):
     # The type parameters that the signature declares
     own_type_params: frozenset[str] = frozenset()
+    # The arguments of each annotation in the signature, by position
+    annotation_args: dict[Any, str]
 
     option_spec: ClassVar[OptionSpec] = {
         **ObjectDescription.option_spec,
@@ -105,10 +107,12 @@ class JavaObject(ObjectDescription[str]):
 
     def _parse(self, parse: Callable[[str], Any], sig: str) -> Any:
         try:
-            return parse(sig)
+            member = parse(sig)
         # The parser raises StopIteration for a signature that ends early
         except (javalang.parser.JavaSyntaxError, javalang.tokenizer.LexerError, StopIteration):
             raise self.error(f'syntax error in {self.objtype} signature') from None
+        self.annotation_args = _annotation_args(sig)
+        return member
 
     def _type_params(self) -> set[str]:
         """ The names of the type parameters in scope """
@@ -197,6 +201,7 @@ class JavaObject(ObjectDescription[str]):
         paramlist = addnodes.desc_parameterlist()
         for parameter in parameters:
             param = addnodes.desc_parameter('', '', noemph=True)
+            param += self._build_modifiers(parameter)
             param += self._build_type_node(parameter.type)
 
             if parameter.varargs:
@@ -211,11 +216,17 @@ class JavaObject(ObjectDescription[str]):
             signode += nodes.Text(' throws ')
             signode += self._build_type_node_list([_reference_type(name) for name in throws])
 
-    @staticmethod
-    def _add_modifiers(signode: desc_signature, modifiers: set[str]) -> None:
-        mods = formatter.output_modifiers(modifiers).build()
+    def _build_modifiers(self, declaration: Any) -> list[Node]:
+        """ The annotations and modifiers of a declaration, each followed by a space """
+        parts: list[Node] = []
+        for annotation in declaration.annotations:
+            parts.append(nodes.Text('@'))
+            parts += self._build_type_node(_reference_type(annotation.name))
+            parts.append(nodes.Text(self.annotation_args.get(annotation.position, '') + ' '))
+        mods = formatter.output_modifiers(declaration.modifiers).build()
         if mods:
-            signode += nodes.Text(mods + ' ')
+            parts.append(nodes.Text(mods + ' '))
+        return parts
 
     @staticmethod
     def _overload_name(member: Any) -> str:
@@ -285,7 +296,7 @@ class JavaMethod(JavaObject):
             raise self.error('expected method declaration')
 
         self.own_type_params = _type_param_names(member)
-        self._add_modifiers(signode, member.modifiers)
+        signode += self._build_modifiers(member)
 
         if member.type_parameters:
             signode += self._build_type_params(member.type_parameters)
@@ -321,7 +332,7 @@ class JavaConstructor(JavaObject):
             raise self.error('expected constructor declaration')
         self.own_type_params = _type_param_names(member)
 
-        self._add_modifiers(signode, member.modifiers)
+        signode += self._build_modifiers(member)
 
         if member.type_parameters:
             signode += self._build_type_params(member.type_parameters)
@@ -356,7 +367,7 @@ class JavaType(JavaObject):
         self.declaration_type = declaration_types[type(member)]
         self.own_type_params = _type_param_names(member)
 
-        self._add_modifiers(signode, member.modifiers)
+        signode += self._build_modifiers(member)
 
         keyword = '@interface' if self.declaration_type == 'annotation' else self.declaration_type
         signode += nodes.Text(keyword + ' ')
@@ -396,7 +407,7 @@ class JavaField(JavaObject):
         if not isinstance(member, javalang.tree.FieldDeclaration):
             raise self.error('expected field declaration')
 
-        self._add_modifiers(signode, member.modifiers)
+        signode += self._build_modifiers(member)
 
         tnode = addnodes.desc_type('', '')
         tnode += self._build_type_node(member.type)
@@ -465,6 +476,24 @@ class JavaImport(SphinxDirective):
         package, typename = self.arguments
         self.env.ref_context.setdefault('java:imports', {})[typename] = package
         return []
+
+
+def _annotation_args(sig: str) -> dict[Any, str]:
+    """ The arguments of each annotation in a signature as written, such as ("unchecked"), by the position of its @ """
+    tokens = list(javalang.tokenizer.tokenize(sig))
+    args = {}
+    for i, token in enumerate(tokens):
+        if token.value != '@' or tokens[i + 1].value == 'interface':
+            continue
+        # Skip the qualified name
+        start = i + 2
+        while tokens[start].value == '.':
+            start += 2
+        if tokens[start].value == '(':
+            depths = accumulate(BRACKET_DEPTHS.get(t.value, 0) for t in tokens[start:])
+            end = next(t for t, depth in zip(tokens[start:], depths, strict=True) if not depth)
+            args[token.position] = sig[tokens[start].position.column - 1:end.position.column]
+    return args
 
 
 def _initializer(sig: str) -> str:

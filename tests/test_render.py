@@ -422,9 +422,41 @@ def test_constructor_type_parameter_bounds(build):
     ('List<String> A = new ArrayList<>()', 'List<String> A = new ArrayList<>()'),
     ('String A = "a = b";', 'String A = "a = b"'),
     ('int[] A = {1, 2}', 'int[] A = {1, 2}'),
-    ('@Size(max = 1) int A = 2', 'int A = 2'),
+    ('@Size(max = 1) int A = 2', '@Size(max = 1) int A = 2'),
 ])
 def test_field_initializer(build, sig, text):
     app = build(f'.. java:field:: {sig}\n   :outertype: Foo\n', nitpicky=False)
     assert warnings(app) == []
     assert signatures(app)['Foo.A'] == text
+
+
+@pytest.mark.parametrize('directive, sig, node_id, text', [
+    ('type', '@Deprecated public class A', 'A', None),
+    ('type', '@SuppressWarnings("unchecked") public class A', 'A', None),
+    ('type', '@Retention(RetentionPolicy.RUNTIME) public @interface A', 'A', None),
+    ('method', '@Override public String toString()', 'Foo.toString()', None),
+    ('method', 'public @Deprecated void a()', 'Foo.a()', '@Deprecated public void a()'),
+    ('method', '@java.lang.Deprecated(since = "9", forRemoval = true) void a()', 'Foo.a()', None),
+    ('method', '@A @B({1, 2}) void a()', 'Foo.a()', None),
+    ('method', 'void a(@Nullable final String x, int y)', 'Foo.a(String, int)', None),
+    ('method', 'void a(final @Nullable String x)', 'Foo.a(String)', 'void a(@Nullable final String x)'),
+    ('method', 'void a(final int... xs)', 'Foo.a(int)', None),
+    ('constructor', '@Inject public Foo(Bar bar)', 'Foo.Foo(Bar)', None),
+    ('field', '@Deprecated public int a', 'Foo.a', None),
+])
+def test_annotations(build, directive, sig, node_id, text):
+    outertype = '' if directive == 'type' else '\n   :outertype: Foo'
+    app = build(f'.. java:{directive}:: {sig}{outertype}\n', nitpicky=False)
+    assert warnings(app) == []
+    assert signatures(app)[node_id] == (text or sig)
+
+
+def test_annotation_links(build):
+    app = build('.. java:method:: @Deprecated @java.lang.FunctionalInterface void a()\n   :outertype: Foo\n')
+    assert warnings(app) == []
+    node = next(resolved_doctree(app).findall(addnodes.desc_signature))
+    assert {ref.astext(): ref['refuri'] for ref in node.findall(lambda n: 'refuri' in n)} == {
+        'Deprecated': API + 'java/lang/Deprecated.html',
+        'java.lang': API + 'java/lang/package-summary.html',
+        'FunctionalInterface': API + 'java/lang/FunctionalInterface.html',
+    }
