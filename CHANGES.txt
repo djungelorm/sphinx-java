@@ -13,6 +13,7 @@ v1.0.0
  * Warn about a java:extdoc target with no external docs, instead of stopping the build
  * Report an error for a field directive that declares several fields
  * Link to the Java SE docs with https
+ * Link a generic type in a role or doc field, such as List<String>, to the type
  * Ship type hints (py.typed)
 
 javasphinx v0.9.16
