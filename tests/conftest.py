@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 import pytest
@@ -36,7 +37,9 @@ def resolved_doctree(app, docname='index'):
 
 # Note: SphinxTestApp.warning was added in Sphinx 7.3.
 def warnings(app):
-    return [strip_colors(line) for line in app._warning.getvalue().splitlines() if line.strip()]
+    """ The warnings, without the warning type that Sphinx 8 appends, such as [ref.type] """
+    return [re.sub(r' \[[a-z.]+\]$', '', strip_colors(line))
+            for line in app._warning.getvalue().splitlines() if line.strip()]
 
 
 def signatures(app):

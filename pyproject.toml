@@ -72,7 +72,7 @@ max-args = 10
 
 [tool.hatch.envs.test]
 installer = "uv"
-dependencies = ["pytest", "pytest-cov"]
+dependencies = ["defusedxml", "pytest", "pytest-cov"]
 
 [[tool.hatch.envs.test.matrix]]
 python = ["3.11", "3.12", "3.13", "3.14", "3.15"]

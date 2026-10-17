@@ -83,9 +83,9 @@ def test_type_parameters(build):
    :outertype: Other
 ''')
     assert [line for line in warnings(app) if 'not found' in line] == [
-        f'{app.srcdir / "index.rst"}:2: WARNING: java:type reference target not found: Base [ref.type]',
-        f'{app.srcdir / "index.rst"}:4: WARNING: java:type reference target not found: List [ref.type]',
-        f'{app.srcdir / "index.rst"}:11: WARNING: java:type reference target not found: T [ref.type]',
+        f'{app.srcdir / "index.rst"}:2: WARNING: java:type reference target not found: Base',
+        f'{app.srcdir / "index.rst"}:4: WARNING: java:type reference target not found: List',
+        f'{app.srcdir / "index.rst"}:11: WARNING: java:type reference target not found: T',
     ]
     assert signatures(app)['Box.convert(U, List)'] == 'public <U> T convert(U value, List<T> items)'
 
@@ -112,7 +112,7 @@ def test_qualified_names(build):
    :outertype: Other
 ''')
     assert warnings(app) == [
-        f'{app.srcdir / "index.rst"}:6: WARNING: java:type reference target not found: org.other.Thing [ref.type]',
+        f'{app.srcdir / "index.rst"}:6: WARNING: java:type reference target not found: org.other.Thing',
     ]
     doctree = resolved_doctree(app)
     node = list(doctree.findall(addnodes.desc_signature))[-1]
@@ -179,7 +179,7 @@ def test_package_reference(build):
 
 @pytest.mark.parametrize('parallel', [0, 2])
 def test_package_on_several_pages(build, parallel):
-    pages = {f'page{i}': '.. java:package:: com.example\n' for i in range(4)}
+    pages = {f'page{i}': '.. java:package:: com.example\n' for i in range(8)}
     app = build(':java:package:`com.example`', pages=pages, parallel=parallel,
                 suppress_warnings=['toc.not_included'])
     assert references(app) == {'com.example': 'page0.html#package-com.example'}
@@ -235,7 +235,7 @@ def test_several_fields(build):
 
 def test_parallel_build(build):
     pages = {f'page{i}': f'.. java:package:: com.example\n   :no-index:\n\n.. java:type:: public class C{i}\n'
-             for i in range(4)}
+             for i in range(8)}
     app = build(':java:type:`C0` :java:type:`C3`', pages=pages, parallel=2,
                 suppress_warnings=['toc.not_included'])
     assert references(app) == {'C0': 'page0.html#com.example.C0', 'C3': 'page3.html#com.example.C3'}
