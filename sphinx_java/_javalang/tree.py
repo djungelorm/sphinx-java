@@ -97,8 +97,9 @@ class ElementArrayValue(Node):
 class Member(Documented):
     attrs = ()
 
+# sphinx-java: default values of annotation elements
 class MethodDeclaration(Member, Declaration):
-    attrs = ("type_parameters", "return_type", "name", "parameters", "throws", "body")
+    attrs = ("type_parameters", "return_type", "name", "parameters", "throws", "body", "default")
 
 class FieldDeclaration(Member, Declaration):
     attrs = ("type", "declarators")

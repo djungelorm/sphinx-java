@@ -334,6 +334,10 @@ class JavaMethod(JavaObject):
         signode += self._build_parameter_list(member.parameters)
         self._add_throws(signode, member.throws)
 
+        # The default value of an annotation element
+        if member.default is not None:
+            signode += nodes.Text(' default ' + _signature_text(sig, _top_level_tokens(sig, 'default')[-1]))
+
         return self._overload_name(member)
 
     def get_index_text(self, name: str) -> str:
@@ -555,21 +559,28 @@ def _parse_enum_constant(sig: str) -> Any:
     return constant
 
 
-def _enum_constant_args(sig: str) -> str:
-    """ The arguments of an enum constant signature as written, after the last ( outside brackets """
+def _top_level_tokens(sig: str, value: str) -> list[Any]:
+    """ The tokens of a signature with a value, such as =, outside brackets """
     tokens = list(javalang.tokenizer.tokenize(sig))
     depths = accumulate((BRACKET_DEPTHS.get(token.value, 0) for token in tokens), initial=0)
-    start = [token for token, depth in zip(tokens, depths, strict=False) if token.value == '(' and not depth][-1]
-    return sig[start.position.column - 1:].strip()
+    return [token for token, depth in zip(tokens, depths, strict=False) if token.value == value and not depth]
+
+
+def _signature_text(sig: str, token: Any, after: bool = True) -> str:
+    """ The signature text after a token, or from it, as written without a trailing ; """
+    # Columns start at 1, and a signature is one line
+    start = token.position.column - 1 + (len(token.value) if after else 0)
+    return sig[start:].strip().removesuffix(';').rstrip()
+
+
+def _enum_constant_args(sig: str) -> str:
+    """ The arguments of an enum constant signature as written, from the last ( outside brackets """
+    return _signature_text(sig, _top_level_tokens(sig, '(')[-1], after=False)
 
 
 def _initializer(sig: str) -> str:
     """ The initializer of a field signature as written, such as 1 << 3 """
-    tokens = list(javalang.tokenizer.tokenize(sig))
-    depths = accumulate(BRACKET_DEPTHS.get(token.value, 0) for token in tokens)
-    equals = next(token for token, depth in zip(tokens, depths, strict=True) if token.value == '=' and not depth)
-    # Columns start at 1, and a signature is one line
-    return sig[equals.position.column:].strip().removesuffix(';').rstrip()
+    return _signature_text(sig, _top_level_tokens(sig, '=')[0])
 
 
 def _reference_type(name: str) -> Any:

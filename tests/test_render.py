@@ -596,3 +596,17 @@ def test_type_annotation_links(build):
     node = next(resolved_doctree(app).findall(addnodes.desc_signature))
     assert [ref.astext() for ref in node.findall(lambda n: 'refuri' in n)] == ['java.util', 'List', 'Deprecated',
                                                                               'String']
+
+
+@pytest.mark.parametrize('sig, text', [
+    ('String value() default ""', None),
+    ('String[] names() default {"a", "b"}', None),
+    ('int size() default -1;', 'int size() default -1'),
+    ('Class<?> type() default Object.class', None),
+    ('Level level() default @Level(value = 1)', None),
+    ('@Deprecated int max() default Integer.MAX_VALUE', None),
+])
+def test_annotation_element_default(build, sig, text):
+    app = build(f'.. java:method:: {sig}\n   :outertype: Foo\n', nitpicky=False)
+    assert warnings(app) == []
+    assert list(signatures(app).values()) == [text or sig]

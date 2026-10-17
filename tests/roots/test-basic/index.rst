@@ -55,6 +55,8 @@ Java Examples
 
 .. java:type:: public @interface Generated
 
+   .. java:method:: String[] value() default {}
+
 .. java:method:: public static void draw(Shape shape)
    :outertype: Canvas
 

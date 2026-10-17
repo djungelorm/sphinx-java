@@ -974,6 +974,11 @@ class Parser(object):
         if self.try_accept('throws'):
             throws = self.parse_qualified_identifier_list()
 
+        # sphinx-java: default values of annotation elements
+        default = None
+        if self.try_accept('default'):
+            default = self.parse_element_value()
+
         if self.would_accept('{'):
             body = self.parse_block()
         else:
@@ -982,6 +987,7 @@ class Parser(object):
         return tree.MethodDeclaration(parameters=formal_parameters,
                                      throws=throws,
                                      body=body,
+                                     default=default,
                                      return_type=tree.Type(dimensions=additional_dimensions))
 
     @parse_debug
