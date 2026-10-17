@@ -23,6 +23,7 @@ from docutils.parsers.rst import directives
 from sphinx import addnodes
 from sphinx.addnodes import desc_signature, pending_xref
 from sphinx.builders import Builder
+from sphinx.config import Config
 from sphinx.directives import ObjectDescription
 from sphinx.domains import Domain, ObjType
 from sphinx.environment import BuildEnvironment
@@ -508,62 +509,65 @@ class JavaDomain(Domain):
             else:
                 self.objects[fullname] = data
 
-    def resolve_xref(self, env: BuildEnvironment, fromdocname: str, builder: Builder, typ: str, target: str,
-                     node: pending_xref, contnode: Element) -> nodes.reference | None:
+    def find_object(self, target: str, node: pending_xref) -> str | None:
+        """ The full name of the object that a reference points to """
         objects = self.objects
         package = node.get('java:package')
-        imported = node.get('java:imported')
         type_context = node.get('java:outertype')
 
-        def make_ref(fullname: str) -> nodes.reference:
-            docname, objtype, _basename = objects[fullname]
-            return make_refnode(builder, fromdocname, docname, _anchor(fullname, objtype), contnode, fullname)
-
-        # Fully qualified reference
-        if target in objects:
-            return make_ref(target)
-
-        # Prefixed with the package
+        candidates = [target]
         if package:
-            fullname = package + '.' + target
+            candidates.append(package + '.' + target)
+            if type_context:
+                candidates.append(package + '.' + type_context + '.' + target)
+        for fullname in candidates:
             if fullname in objects:
-                return make_ref(fullname)
+                return fullname
 
-        # Prefixed with the package and type
-        if package and type_context:
-            fullname = package + '.' + type_context + '.' + target
-            if fullname in objects:
-                return make_ref(fullname)
-
-        # A matching suffix
+        # A matching suffix, or failing that the last object with a matching basename
         suffix = '.' + target
-        basename_match = None
         basename_suffix = suffix.partition('(')[0]
-
+        basename_match = None
         for fullname, (_docname, _objtype, basename) in objects.items():
             if fullname.endswith(suffix):
-                return make_ref(fullname)
-            elif basename.endswith(basename_suffix):
+                return fullname
+            if basename.endswith(basename_suffix):
                 basename_match = fullname
+        return basename_match
 
-        if basename_match:
-            return make_ref(basename_match)
+    def external_ref(self, config: Config, target: str, node: pending_xref) -> nodes.reference | None:
+        """ A reference to the external docs for a target """
+        candidates = [target]
+        if target in java_dot_lang:
+            candidates.append('java.lang.' + target)
+        if node.get('java:imported'):
+            candidates.append(node['java:package'] + '.' + target)
+        for fulltarget in candidates:
+            ref = extdoc.get_javadoc_ref(config, fulltarget, fulltarget)
+            if ref:
+                return ref
+        return None
 
-        # External documentation
-        ref = extdoc.get_javadoc_ref(env.config, target, target)
+    def resolve_xref(self, env: BuildEnvironment, fromdocname: str, builder: Builder, typ: str, target: str,
+                     node: pending_xref, contnode: Element) -> nodes.reference | None:
+        fullname = self.find_object(target, node)
+        if fullname:
+            docname, objtype, _basename = self.objects[fullname]
+            return make_refnode(builder, fromdocname, docname, _anchor(fullname, objtype), contnode, fullname)
 
-        if not ref and target in java_dot_lang:
-            fulltarget = 'java.lang.' + target
-            ref = extdoc.get_javadoc_ref(env.config, fulltarget, fulltarget)
-
-        # An imported target, prefixed with its package
-        if not ref and imported:
-            fulltarget = package + '.' + target
-            ref = extdoc.get_javadoc_ref(env.config, fulltarget, fulltarget)
-
+        ref = self.external_ref(env.config, target, node)
         if ref:
             ref.append(contnode)
         return ref
+
+    def resolve_any_xref(self, env: BuildEnvironment, fromdocname: str, builder: Builder, target: str,
+                         node: pending_xref, contnode: Element) -> list[tuple[str, nodes.reference]]:
+        ref = self.resolve_xref(env, fromdocname, builder, 'ref', target, node, contnode)
+        if ref is None:
+            return []
+        fullname = self.find_object(target, node)
+        role = self.role_for_objtype(self.objects[fullname][1]) if fullname else 'type'
+        return [(f'java:{role}', ref)]
 
     def get_objects(self) -> Iterator[tuple[str, str, str, str, str, int]]:
         for refname, (docname, objtype, _basename) in self.objects.items():

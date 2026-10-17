@@ -136,11 +136,16 @@ def test_package_no_index(build):
     assert any('reference target not found: com.example' in line for line in warnings(app))
 
 
-@pytest.mark.xfail(reason='the any role finds an object once for each role')
 def test_any_reference(build):
     app = build('.. java:package:: com.example\n\n.. java:type:: public class Box\n\n:any:`Box`\n')
     assert warnings(app) == []
     assert references(app) == {'Box': 'com.example.Box'}
+
+
+def test_any_reference_external(build):
+    app = build(':any:`String`')
+    assert warnings(app) == []
+    assert references(app) == {'String': 'http://docs.oracle.com/javase/8/docs/api/java/lang/String.html'}
 
 
 def test_duplicate_warning(build):
