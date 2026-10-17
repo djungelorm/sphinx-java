@@ -365,3 +365,20 @@ def test_throws(build, directive, sig, node_id, text, refs):
     assert signatures(app)[node_id] == text
     node = next(resolved_doctree(app).findall(addnodes.desc_signature))
     assert {ref.astext(): ref['refuri'] for ref in node.findall(lambda n: 'refuri' in n)} == refs
+
+
+@pytest.mark.parametrize('directive, sig', [('method', 'void read()'), ('constructor', 'Foo()')])
+def test_throws_field(build, directive, sig):
+    app = build(f'''
+.. java:import:: java.io IOException
+
+.. java:{directive}:: {sig}
+   :outertype: Foo
+
+   :throws IOException: If the read fails.
+''')
+    assert warnings(app) == []
+    fields = next(resolved_doctree(app).findall(nodes.field_list))
+    assert {ref.astext(): ref['refuri'] for ref in fields.findall(nodes.reference)} == {
+        'IOException': API + 'java/io/IOException.html',
+    }
