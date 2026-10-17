@@ -239,3 +239,75 @@ def test_parallel_build(build):
     app = build(':java:type:`C0` :java:type:`C3`', pages=pages, parallel=2,
                 suppress_warnings=['toc.not_included'])
     assert references(app) == {'C0': 'page0.html#com.example.C0', 'C3': 'page3.html#com.example.C3'}
+
+
+@pytest.mark.parametrize('sig, node_id, text', [
+    ('java.util.Map.Entry<String, Integer> first()', 'Foo.first()', 'java.util.Map.Entry<String, Integer> first()'),
+    ('Map<String, Integer>.Entry first()', 'Foo.first()', 'Map<String, Integer>.Entry first()'),
+    ('String[][] grid(List<?> items)', 'Foo.grid(List)', 'String[][] grid(List<?> items)'),
+    ('<T extends List<?>> void wildcard(T items)', 'Foo.wildcard(T)', '<T extends List<?>> void wildcard(T items)'),
+    ('<T extends Number & Comparable<? super T>> T max()', 'Foo.max()',
+     '<T extends Number & Comparable<? super T>> T max()'),
+])
+def test_method_types(build, sig, node_id, text):
+    app = build(f'.. java:method:: {sig}\n   :outertype: Foo\n', nitpicky=False)
+    assert warnings(app) == []
+    assert signatures(app)[node_id] == text
+
+
+@pytest.mark.parametrize('sig, text', [
+    ('interface Plain', 'interface Plain'),
+    ('enum Plain', 'enum Plain'),
+    ('class Plain<T>', 'class Plain<T>'),
+])
+def test_type_without_supertypes(build, sig, text):
+    app = build(f'.. java:type:: {sig}\n')
+    assert warnings(app) == []
+    assert signatures(app)['Plain'] == text
+
+
+def test_constructor_signature_is_not_a_method(build):
+    app = build('.. java:constructor:: int foo()\n   :outertype: Foo\n')
+    assert any('expected constructor declaration' in line for line in warnings(app))
+
+
+def test_same_page_duplicate(build):
+    app = build('.. java:type:: public class Box\n\n.. java:type:: public class Box\n')
+    assert warnings(app) == []
+    assert [node['ids'] for node in resolved_doctree(app).findall(addnodes.desc_signature)] == [['Box'], []]
+
+
+def test_tilde_without_package(build):
+    app = build('.. java:type:: public class Box\n\n:java:type:`~Box`\n')
+    assert references(app) == {'Box': 'Box'}
+
+
+def test_any_reference_unresolved(build):
+    app = build(':any:`Missing`')
+    assert any("'any' reference target not found: Missing" in line for line in warnings(app))
+
+
+def test_field_xref_without_inliner(build):
+    app = build('.. java:type:: public class Box<T>\n\n   .. java:import:: java.util List\n')
+    domain = app.env.get_domain('java')
+    app.env.ref_context['java:typeparams'] = [frozenset({'T'})]
+    app.env.ref_context['java:imports'] = {'List': 'java.util'}
+    node = addnodes.pending_xref('', reftarget='T')
+    domain.process_field_xref(node)
+    assert node['java:plain']
+    node = addnodes.pending_xref('', reftarget='List')
+    domain.process_field_xref(node)
+    assert node['java:package'] == 'java.util'
+    assert node['java:imported']
+
+
+def test_rebuild_after_removing_a_page(build, make_app):
+    app = build(':java:type:`com.example.Box`', pages={
+        'other': '.. java:package:: com.example\n\n.. java:type:: public class Box\n',
+    }, suppress_warnings=['toc.not_included'])
+    assert references(app) == {'com.example.Box': 'other.html#com.example.Box'}
+    (app.srcdir / 'other.rst').unlink()
+    app = make_app('html', srcdir=app.srcdir, confoverrides={'nitpicky': True})
+    app.build()
+    assert 'com.example.Box' not in app.env.get_domain('java').objects
+    assert any('reference target not found: com.example.Box' in line for line in warnings(app))

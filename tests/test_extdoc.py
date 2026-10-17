@@ -74,3 +74,7 @@ def test_role_unknown(build):
 def test_config_unchanged(build):
     app = build(':java:type:`String`', javadoc_url_map={})
     assert app.config.javadoc_url_map == {}
+
+
+def test_method_without_package():
+    assert get_javadoc_ref(SimpleNamespace(javadoc_url_map=URL_MAP), 'sort(List)', 'sort(List)') is None

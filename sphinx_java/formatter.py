@@ -56,13 +56,6 @@ def output_list(f: Callable[[Any, StringBuilder], object], items: Sequence[Any],
 
 
 @formatter
-def output_annotation(annotation: Any, output: StringBuilder) -> None:
-    output.append('@')
-    output.append(annotation.name)
-    output.append(' ')
-
-
-@formatter
 def output_type(typ: Any, output: StringBuilder, with_generics: bool = True) -> None:
     if not typ:
         output.append('void')
@@ -118,10 +111,9 @@ def output_type_param(type_param: Any, output: StringBuilder) -> None:
 
 @formatter
 def output_type_params(type_params: Any, output: StringBuilder) -> None:
-    if type_params:
-        output.append('<')
-        output_list(output_type_param, type_params, output, ', ')
-        output.append('>')
+    output.append('<')
+    output_list(output_type_param, type_params, output, ', ')
+    output.append('>')
 
 
 @formatter

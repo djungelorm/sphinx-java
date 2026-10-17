@@ -222,9 +222,7 @@ class JavaObject(ObjectDescription[str]):
 
             objects[fullname] = (self.env.docname, self.objtype, basename)
 
-        indextext = self.get_index_text(name)
-        if indextext:
-            self.indexnode['entries'].append(('single', indextext, fullname, '', None))
+        self.indexnode['entries'].append(('single', self.get_index_text(name), fullname, '', None))
 
     def before_content(self) -> None:
         self.set_type = False
@@ -315,7 +313,7 @@ class JavaType(JavaObject):
         GroupedField('parameter', names=('param',), label=_('Parameters'))
     ]
 
-    declaration_type: str | None = None
+    declaration_type = ''
 
     def handle_signature(self, sig: str, signode: desc_signature) -> str:
         try:
@@ -329,9 +327,7 @@ class JavaType(JavaObject):
             javalang.tree.EnumDeclaration: 'enum',
             javalang.tree.AnnotationDeclaration: 'annotation',
         }
-        self.declaration_type = declaration_types.get(type(member))
-        if self.declaration_type is None:
-            raise self.error('expected type declaration')
+        self.declaration_type = declaration_types[type(member)]
         self.own_type_params = _type_param_names(member)
 
         self._add_modifiers(signode, member.modifiers)

@@ -109,3 +109,7 @@ filterwarnings = ["error"]
 [tool.coverage.run]
 branch = true
 omit = ["sphinx_java/_javalang/*"]
+
+[tool.coverage.report]
+fail_under = 100
+exclude_also = ["raise NotImplementedError"]
