@@ -29,6 +29,7 @@ v1.0.0
  * Support sealed and non-sealed types, and permits clauses
  * Support type annotations and receiver parameters
  * Show the default value of an annotation element
+ * Fix a crash on a signature that ends with the number 0
  * Ship type hints (py.typed)
 
 javasphinx v0.9.16

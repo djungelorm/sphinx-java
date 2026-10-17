@@ -422,6 +422,7 @@ def test_constructor_type_parameter_bounds(build):
     ('List<String> A = new ArrayList<>()', 'List<String> A = new ArrayList<>()'),
     ('String A = "a = b";', 'String A = "a = b"'),
     ('int[] A = {1, 2}', 'int[] A = {1, 2}'),
+    ('int A = 0', 'int A = 0'),
     ('@Size(max = 1) int A = 2', '@Size(max = 1) int A = 2'),
 ])
 def test_field_initializer(build, sig, text):
@@ -602,6 +603,7 @@ def test_type_annotation_links(build):
     ('String value() default ""', None),
     ('String[] names() default {"a", "b"}', None),
     ('int size() default -1;', 'int size() default -1'),
+    ('int size() default 0', None),
     ('Class<?> type() default Object.class', None),
     ('Level level() default @Level(value = 1)', None),
     ('@Deprecated int max() default Integer.MAX_VALUE', None),
