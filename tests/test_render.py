@@ -228,7 +228,6 @@ def test_invalid_type_signature(build):
     assert any('syntax error in type signature' in line for line in warnings(app))
 
 
-@pytest.mark.xfail(reason='documenting several fields at once is not an error')
 def test_several_fields(build):
     app = build('.. java:field:: int x, y\n   :outertype: Foo\n')
     assert any('only one field may be documented at a time' in line for line in warnings(app))

@@ -387,7 +387,7 @@ class JavaField(JavaObject):
         signode += nodes.Text(' ')
 
         if len(member.declarators) > 1:
-            self.error('only one field may be documented at a time')
+            raise self.error('only one field may be documented at a time')
 
         declarator = member.declarators[0]
         signode += addnodes.desc_name(declarator.name, declarator.name)
