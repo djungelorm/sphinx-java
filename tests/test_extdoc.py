@@ -31,12 +31,11 @@ def test_url(target, url):
     assert ref['refuri'] == url
 
 
-@pytest.mark.parametrize('target', ['org.other.Foo', 'Foo', 'org.examples.Foo'])
+@pytest.mark.parametrize('target', ['org.other.Foo', 'Foo', 'org.examples.Foo', 'java', 'org.xml'])
 def test_no_source(target):
     assert get_javadoc_ref(SimpleNamespace(javadoc_url_map=URL_MAP), target, target) is None
 
 
-@pytest.mark.xfail(reason='a package in the map is only found with a dot after it')
 def test_mapped_package():
     ref = get_javadoc_ref(SimpleNamespace(javadoc_url_map=URL_MAP), 'org.example', 'org.example')
     assert ref is not None

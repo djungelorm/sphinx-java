@@ -30,12 +30,14 @@ JAVA_SE_PACKAGES = ('java', 'javax', 'org.xml', 'org.w3c')
 
 
 def _find_source(config: Config, text: str) -> tuple[str, str] | None:
-    """ The base URL and docs type for the longest package that text starts with """
+    """ The base URL and docs type for the longest package that contains text """
     javadoc_url_map: dict[str, tuple[str, str]] = {
         **{package: JAVA_SE_DOCS for package in JAVA_SE_PACKAGES},
         **{package: source for package, source in config.javadoc_url_map.items() if source},
     }
-    matches = [package for package in javadoc_url_map if text.startswith(package + '.')]
+    # Note: The Java SE prefixes, such as java, are not packages themselves.
+    matches = [package for package in javadoc_url_map if text.startswith(package + '.')
+               or (text == package and package in config.javadoc_url_map)]
     if not matches:
         return None
     return javadoc_url_map[max(matches, key=len)]
