@@ -507,7 +507,7 @@ def test_enum_constant_references(build):
     assert 'RED (Java enum constant)' in entries
 
 
-@pytest.mark.parametrize('sig', ['RED extra', 'RED(', '1'])
+@pytest.mark.parametrize('sig', ['RED extra', 'RED(', '1', 'RED(a', 'RED(a.b'])
 def test_invalid_enum_constant(build, sig):
     app = build(f'.. java:enumconstant:: {sig}\n   :outertype: Color\n')
     assert any('syntax error in enum constant signature' in line for line in warnings(app))

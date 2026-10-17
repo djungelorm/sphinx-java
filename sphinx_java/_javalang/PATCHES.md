@@ -9,3 +9,4 @@ The parser is vendored from javalang 0.13.1, without its Javadoc parser. These c
 - Annotation elements: a `default` value after the parameters of a method.
 - Tokenizer: a `0` at the end of the input is a decimal integer.
 - Backtracking: popping a nested marker without a reset left the outer marker at the nested position.
+- Expressions: an expression at the end of the input, such as the `a` of `RED(a`, is a syntax error.

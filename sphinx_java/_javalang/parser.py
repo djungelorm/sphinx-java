@@ -1986,7 +1986,8 @@ class Parser(object):
         primary.postfix_operators = list()
 
         token = self.tokens.look()
-        while token.value in '[.':
+        # sphinx-java: the end of the input, whose value is None
+        while token.value in ('[', '.'):
             selector = self.parse_selector()
             selector._position = token.position
             primary.selectors.append(selector)
