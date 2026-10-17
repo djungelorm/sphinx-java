@@ -16,6 +16,7 @@ v1.0.0
  * Link a generic type in a role or doc field, such as List<String>, to the type
  * Show the throws clause of a method or constructor signature
  * Link the exception types in the throws field of a constructor
+ * Link the bounds of type parameters in signatures
  * Ship type hints (py.typed)
 
 javasphinx v0.9.16

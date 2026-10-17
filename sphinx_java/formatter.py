@@ -36,11 +36,9 @@ class StringBuilder(list[str]):
 
 
 def formatter(f: Callable[Concatenate[Any, StringBuilder, ...], None]) -> Callable[..., StringBuilder]:
-    """ Make the output argument optional, and return the output """
-    def _f(node: Any, output: StringBuilder | None = None, **kwargs: Any) -> StringBuilder:
-        if output is None:
-            output = StringBuilder()
-
+    """ Write to a new output, and return the output """
+    def _f(node: Any, **kwargs: Any) -> StringBuilder:
+        output = StringBuilder()
         f(node, output, **kwargs)
         return output
 
@@ -57,7 +55,7 @@ def output_list(f: Callable[[Any, StringBuilder], object], items: Sequence[Any],
 
 
 @formatter
-def output_type(typ: Any, output: StringBuilder, with_generics: bool = True) -> None:
+def output_type(typ: Any, output: StringBuilder) -> None:
     if not typ:
         output.append('void')
         return
@@ -69,52 +67,11 @@ def output_type(typ: Any, output: StringBuilder, with_generics: bool = True) -> 
     else:
         while typ:
             output.append(typ.name)
-
-            if with_generics:
-                output_type_args(typ.arguments, output)
-
             typ = typ.sub_type
 
             if typ:
                 output.append('.')
     output.append(dim)
-
-
-@formatter
-def output_type_arg(type_arg: Any, output: StringBuilder) -> None:
-    if type_arg.pattern_type == '?':
-        output.append('?')
-    else:
-        if type_arg.pattern_type:
-            output.append('? ')
-            output.append(type_arg.pattern_type)
-            output.append(' ')
-
-        output_type(type_arg.type, output)
-
-
-@formatter
-def output_type_args(type_args: Any, output: StringBuilder) -> None:
-    if type_args:
-        output.append('<')
-        output_list(output_type_arg, type_args, output, ', ')
-        output.append('>')
-
-
-@formatter
-def output_type_param(type_param: Any, output: StringBuilder) -> None:
-    output.append(type_param.name)
-
-    if type_param.extends:
-        output.append(' extends ')
-        output_list(output_type, type_param.extends, output, ' & ')
-
-
-@formatter
-def output_type_params(type_params: Any, output: StringBuilder) -> None:
-    output.append('<')
-    output_list(output_type_param, type_params, output, ', ')
-    output.append('>')
 
 
 @formatter

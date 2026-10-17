@@ -170,6 +170,18 @@ class JavaObject(ObjectDescription[str]):
             parts.extend(self._build_type_node(typ))
         return parts
 
+    def _build_type_params(self, type_params: list[Any]) -> list[Node]:
+        parts: list[Node] = [nodes.Text('<')]
+        for i, type_param in enumerate(type_params):
+            if i > 0:
+                parts.append(nodes.Text(', '))
+            parts.append(nodes.Text(type_param.name))
+            for j, bound in enumerate(type_param.extends or []):
+                parts.append(nodes.Text(' & ' if j else ' extends '))
+                parts.extend(self._build_type_node(bound))
+        parts.append(nodes.Text('>'))
+        return parts
+
     def _build_parameter_list(self, parameters: list[Any]) -> addnodes.desc_parameterlist:
         paramlist = addnodes.desc_parameterlist()
         for parameter in parameters:
@@ -197,7 +209,7 @@ class JavaObject(ObjectDescription[str]):
     @staticmethod
     def _overload_name(member: Any) -> str:
         """ The name of a method or constructor with its parameter types, such as foo(int, List) """
-        param_reprs = [formatter.output_type(param.type, with_generics=False).build() for param in member.parameters]
+        param_reprs = [formatter.output_type(param.type).build() for param in member.parameters]
         return f'{member.name}({", ".join(param_reprs)})'
 
     def get_index_text(self, name: str) -> str:
@@ -268,8 +280,7 @@ class JavaMethod(JavaObject):
         self._add_modifiers(signode, member.modifiers)
 
         if member.type_parameters:
-            type_params = formatter.output_type_params(member.type_parameters).build()
-            signode += nodes.Text(type_params)
+            signode += self._build_type_params(member.type_parameters)
             signode += nodes.Text(' ')
 
         rnode = addnodes.desc_type('', '')
@@ -347,8 +358,7 @@ class JavaType(JavaObject):
         signode += addnodes.desc_name(member.name, member.name)
 
         if self.declaration_type in ('class', 'interface') and member.type_parameters:
-            type_params = formatter.output_type_params(member.type_parameters).build()
-            signode += nodes.Text(type_params)
+            signode += self._build_type_params(member.type_parameters)
 
         if self.declaration_type == 'class':
             if member.extends:

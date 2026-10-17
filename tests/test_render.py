@@ -142,6 +142,7 @@ def test_signature_references(app):
     node = next(node for node in doctree.findall(addnodes.desc_signature) if 'com.example.Box' in node['ids'])
     refs = {ref.astext(): ref.get('refid') or ref.get('refuri') for ref in node.findall(lambda n: 'refuri' in n
                                                                                           or 'refid' in n)}
+    assert refs['Comparable'] == 'https://docs.oracle.com/javase/8/docs/api/java/lang/Comparable.html'
     assert refs['Base'] == 'com.example.Base'
     assert refs['Other'] == 'com.example.Other'
     assert refs['Serializable'] == 'https://docs.oracle.com/javase/8/docs/api/java/io/Serializable.html'
@@ -354,7 +355,7 @@ API = 'https://docs.oracle.com/javase/8/docs/api/'
      {'java.io': API + 'java/io/package-summary.html', 'IOException': API + 'java/io/IOException.html',
       'Error': API + 'java/lang/Error.html'}),
     ('method', '<E extends Exception> void run() throws E', 'Foo.run()', '<E extends Exception> void run() throws E',
-     {}),
+     {'Exception': API + 'java/lang/Exception.html'}),
     ('constructor', 'public Foo(String path) throws IOException', 'Foo.Foo(String)',
      'public Foo(String path) throws IOException',
      {'String': API + 'java/lang/String.html', 'IOException': API + 'java/io/IOException.html'}),
@@ -382,3 +383,18 @@ def test_throws_field(build, directive, sig):
     assert {ref.astext(): ref['refuri'] for ref in fields.findall(nodes.reference)} == {
         'IOException': API + 'java/io/IOException.html',
     }
+
+
+def test_type_parameter_bounds(build):
+    app = build('''
+.. java:type:: public class Base
+
+.. java:method:: <K, T extends Base & Comparable<? super T>> T max(K key, T a, T b)
+   :outertype: Base
+''')
+    assert warnings(app) == []
+    node = list(resolved_doctree(app).findall(addnodes.desc_signature))[-1]
+    assert node.astext() == '<K, T extends Base & Comparable<? super T>> T max(K key, T a, T b)'
+    refs = [(ref.astext(), ref.get('refid') or ref.get('refuri'))
+            for ref in node.findall(lambda n: 'refuri' in n or 'refid' in n)]
+    assert refs == [('Base', 'Base'), ('Comparable', API + 'java/lang/Comparable.html')]
