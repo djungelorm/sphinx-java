@@ -27,7 +27,7 @@ from sphinx.errors import ConfigError
 from sphinx.locale import __
 from sphinx.util.nodes import split_explicit_title
 
-from .javase_modules import JAVA_SE_MODULES
+from .javase import JAVA_SE_MODULES
 
 # The Java SE packages, which link to the Java SE docs unless javadoc_url_map has them
 JAVA_SE_PACKAGES = ('java', 'javax', 'org.ietf', 'org.xml', 'org.w3c')

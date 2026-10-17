@@ -33,6 +33,7 @@ v1.0.0
  * Show modifiers in the order of the Java Language Specification, such as abstract static
  * Keep an annotation written after the modifiers, such as public @Nullable String, in its place
  * Link a nested type of an imported or java.lang type, such as Map.Entry, and an imported nested type by its simple name
+ * Link the java.lang types added since Java 8, such as FunctionalInterface and Record
  * Ship type hints (py.typed)
 
 javasphinx v0.9.16

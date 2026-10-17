@@ -41,32 +41,9 @@ from sphinx.util.typing import OptionSpec
 
 from . import _javalang as javalang
 from . import extdoc, formatter
+from .javase import JAVA_LANG_TYPES
 
 logger = logging.getLogger(__name__)
-
-# Classes in java.lang. These are available without an import.
-java_dot_lang = {'AbstractMethodError', 'Appendable', 'ArithmeticException', 'ArrayIndexOutOfBoundsException',
-                 'ArrayStoreException', 'AssertionError', 'AutoCloseable', 'Boolean', 'BootstrapMethodError',
-                 'Byte', 'Character', 'CharSequence', 'Class', 'ClassCastException', 'ClassCircularityError',
-                 'ClassFormatError', 'ClassLoader', 'ClassNotFoundException', 'ClassValue', 'Cloneable',
-                 'CloneNotSupportedException', 'Comparable', 'Compiler', 'Deprecated', 'Double', 'Enum',
-                 'EnumConstantNotPresentException', 'Error', 'Exception', 'ExceptionInInitializerError',
-                 'Float', 'IllegalAccessError', 'IllegalAccessException', 'IllegalArgumentException',
-                 'IllegalMonitorStateException', 'IllegalStateException', 'IllegalThreadStateException',
-                 'IncompatibleClassChangeError', 'IndexOutOfBoundsException', 'InheritableThreadLocal',
-                 'InstantiationError', 'InstantiationException', 'Integer', 'InternalError',
-                 'InterruptedException', 'Iterable', 'LinkageError', 'Long', 'Math',
-                 'NegativeArraySizeException', 'NoClassDefFoundError', 'NoSuchFieldError',
-                 'NoSuchFieldException', 'NoSuchMethodError', 'NoSuchMethodException', 'NullPointerException',
-                 'Number', 'NumberFormatException', 'Object', 'OutOfMemoryError', 'Override', 'Package',
-                 'Process', 'ProcessBuilder', 'Readable', 'ReflectiveOperationException', 'Runnable', 'Runtime',
-                 'RuntimeException', 'RuntimePermission', 'SafeVarargs', 'SecurityException', 'SecurityManager',
-                 'Short', 'StackOverflowError', 'StackTraceElement', 'StrictMath', 'String', 'StringBuffer',
-                 'StringBuilder', 'StringIndexOutOfBoundsException', 'SuppressWarnings', 'System', 'Thread',
-                 'ThreadDeath', 'ThreadGroup', 'ThreadLocal', 'Throwable', 'TypeNotPresentException',
-                 'UnknownError', 'UnsatisfiedLinkError', 'UnsupportedClassVersionError',
-                 'UnsupportedOperationException', 'VerifyError', 'VirtualMachineError', 'Void'}
-
 
 # The change in bracket depth at each bracket token
 BRACKET_DEPTHS = {'(': 1, '[': 1, '{': 1, ')': -1, ']': -1, '}': -1}
@@ -618,7 +595,7 @@ def _import_qualifier(env: BuildEnvironment, target: str) -> str | None:
     imports = env.ref_context.get('java:imports', {})
     first = target.partition('.')[0]
     qualifier: str | None = imports.get(target) or imports.get(first)
-    if not qualifier and first in java_dot_lang:
+    if not qualifier and first in JAVA_LANG_TYPES:
         qualifier = 'java.lang'
     return qualifier
 
@@ -775,7 +752,7 @@ class JavaDomain(Domain):
     def external_ref(self, config: Config, target: str, node: pending_xref) -> nodes.reference | None:
         """ A reference to the external docs for a target """
         candidates = [target]
-        if target.partition('.')[0] in java_dot_lang:
+        if target.partition('.')[0] in JAVA_LANG_TYPES:
             candidates.append('java.lang.' + target)
         if node.get('java:imported'):
             candidates.append(node['java:package'] + '.' + target)

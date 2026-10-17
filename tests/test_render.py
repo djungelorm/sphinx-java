@@ -670,3 +670,11 @@ def test_nested_imported_type_roles(build):
         'Map.Entry': API + 'java/util/Map.Entry.html',
         'Map.Entry.getKey()': API + 'java/util/Map.Entry.html#getKey()',
     }
+
+
+def test_java_lang_types(build):
+    app = build('.. java:method:: @FunctionalInterface Record a(ScopedValue<String> v)\n   :outertype: Foo\n')
+    assert warnings(app) == []
+    node = next(resolved_doctree(app).findall(addnodes.desc_signature))
+    assert {ref.astext(): ref['refuri'] for ref in node.findall(lambda n: 'refuri' in n)} == {
+        name: API + f'java/lang/{name}.html' for name in ('FunctionalInterface', 'Record', 'ScopedValue', 'String')}
