@@ -110,7 +110,8 @@ class JavaObject(ObjectDescription[str]):
             member = parse(sig)
         # The parser raises StopIteration for a signature that ends early
         except (javalang.parser.JavaSyntaxError, javalang.tokenizer.LexerError, StopIteration):
-            raise self.error(f'syntax error in {self.objtype} signature') from None
+            lname = self.env.get_domain('java').object_types[self.objtype].lname
+            raise self.error(f'syntax error in {lname} signature') from None
         self.annotation_args = _annotation_args(sig)
         return member
 
@@ -223,7 +224,7 @@ class JavaObject(ObjectDescription[str]):
             parts.append(nodes.Text('@'))
             parts += self._build_type_node(_reference_type(annotation.name))
             parts.append(nodes.Text(self.annotation_args.get(annotation.position, '') + ' '))
-        mods = formatter.output_modifiers(declaration.modifiers).build()
+        mods = formatter.output_modifiers(declaration.modifiers or set()).build()
         if mods:
             parts.append(nodes.Text(mods + ' '))
         return parts
@@ -434,6 +435,20 @@ class JavaField(JavaObject):
         return _('%s (Java field)') % name
 
 
+class JavaEnumConstant(JavaObject):
+    def handle_signature(self, sig: str, signode: desc_signature) -> str:
+        constant = self._parse(_parse_enum_constant, sig)
+        signode += self._build_modifiers(constant)
+        signode += addnodes.desc_name(constant.name, constant.name)
+        if constant.arguments is not None:
+            signode += nodes.Text(_enum_constant_args(sig))
+        name: str = constant.name
+        return name
+
+    def get_index_text(self, name: str) -> str:
+        return _('%s (Java enum constant)') % name
+
+
 class JavaPackage(SphinxDirective):
     """ Sets the current package, and adds a target and an index entry for it """
 
@@ -494,6 +509,22 @@ def _annotation_args(sig: str) -> dict[Any, str]:
             end = next(t for t, depth in zip(tokens[start:], depths, strict=True) if not depth)
             args[token.position] = sig[tokens[start].position.column - 1:end.position.column]
     return args
+
+
+def _parse_enum_constant(sig: str) -> Any:
+    parser = javalang.parser.Parser(javalang.tokenizer.tokenize(sig))
+    constant = parser.parse_enum_constant()
+    if not parser.would_accept(javalang.tokenizer.EndOfInput):
+        parser.illegal('Expected end of signature')
+    return constant
+
+
+def _enum_constant_args(sig: str) -> str:
+    """ The arguments of an enum constant signature as written, after the last ( outside brackets """
+    tokens = list(javalang.tokenizer.tokenize(sig))
+    depths = accumulate((BRACKET_DEPTHS.get(token.value, 0) for token in tokens), initial=0)
+    start = [token for token, depth in zip(tokens, depths, strict=False) if token.value == '(' and not depth][-1]
+    return sig[start.position.column - 1:].strip()
 
 
 def _initializer(sig: str) -> str:
@@ -579,6 +610,7 @@ class JavaDomain(Domain):
         'package': ObjType(_('package'), 'package', 'ref'),
         'type': ObjType(_('type'), 'type', 'ref'),
         'field': ObjType(_('field'), 'field', 'ref'),
+        'enumconstant': ObjType(_('enum constant'), 'field', 'ref'),
         'constructor': ObjType(_('constructor'), 'construct', 'ref'),
         'method': ObjType(_('method'), 'meth', 'ref')
     }
@@ -587,6 +619,7 @@ class JavaDomain(Domain):
         'package': JavaPackage,
         'type': JavaType,
         'field': JavaField,
+        'enumconstant': JavaEnumConstant,
         'constructor': JavaConstructor,
         'method': JavaMethod,
         'import': JavaImport

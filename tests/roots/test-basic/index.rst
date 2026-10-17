@@ -45,6 +45,10 @@ Java Examples
 
 .. java:type:: public enum Color implements java.io.Serializable
 
+   .. java:enumconstant:: RED(0xFF0000)
+
+   .. java:enumconstant:: @Deprecated GREY
+
 .. java:type:: public @interface Generated
 
 .. java:method:: public static void draw(Shape shape)

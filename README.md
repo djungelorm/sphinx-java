@@ -51,6 +51,7 @@ See [`tests/roots/test-basic/index.rst`](https://github.com/djungelorm/sphinx-ja
 - `java:type`: a class, interface, enum or annotation. Document type parameters with `param` fields.
 - `java:constructor` and `java:method`: document parameters with `param` and exceptions with `throws`. A method also takes `return`.
 - `java:field`: one field.
+- `java:enumconstant`: one enum constant, such as `RED` or `RED(0xFF0000)`. The `java:field` role links to it.
 
 A constructor, method or field outside a `java:type` directive takes the `:outertype:` option to name its type. Every object directive takes `:package:` to override the current package, and the standard `:no-index:` options.
 

@@ -460,3 +460,47 @@ def test_annotation_links(build):
         'java.lang': API + 'java/lang/package-summary.html',
         'FunctionalInterface': API + 'java/lang/FunctionalInterface.html',
     }
+
+
+ENUM_SOURCE = '''
+.. java:package:: com.example
+
+.. java:type:: public enum Color
+
+   .. java:enumconstant:: RED
+
+   .. java:enumconstant:: @Deprecated GREEN(0x00FF00, "green")
+
+   .. java:enumconstant:: @Shade(dark = true) BLUE("(blue)")
+
+:java:field:`Color.RED`, :java:ref:`Color.GREEN`, :any:`Color.BLUE`
+'''
+
+
+@pytest.mark.parametrize('node_id, text', [
+    ('com.example.Color.RED', 'RED'),
+    ('com.example.Color.GREEN', '@Deprecated GREEN(0x00FF00, "green")'),
+    ('com.example.Color.BLUE', '@Shade(dark = true) BLUE("(blue)")'),
+])
+def test_enum_constant(build, node_id, text):
+    app = build(ENUM_SOURCE, nitpicky=False)
+    assert warnings(app) == []
+    assert signatures(app)[node_id] == text
+
+
+def test_enum_constant_references(build):
+    app = build(ENUM_SOURCE, nitpicky=False)
+    assert references(app) == {
+        'Deprecated': API + 'java/lang/Deprecated.html',
+        'Color.RED': 'com.example.Color.RED',
+        'Color.GREEN': 'com.example.Color.GREEN',
+        'Color.BLUE': 'com.example.Color.BLUE',
+    }
+    entries = [entry[1] for node in resolved_doctree(app).findall(addnodes.index) for entry in node['entries']]
+    assert 'RED (Java enum constant)' in entries
+
+
+@pytest.mark.parametrize('sig', ['RED extra', 'RED(', '1'])
+def test_invalid_enum_constant(build, sig):
+    app = build(f'.. java:enumconstant:: {sig}\n   :outertype: Color\n')
+    assert any('syntax error in enum constant signature' in line for line in warnings(app))

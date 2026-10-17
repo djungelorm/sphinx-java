@@ -24,6 +24,7 @@ v1.0.0
  * Show the default modifier of an interface method
  * Show the initializer of a field as written, such as -1 or Integer.MAX_VALUE
  * Show the annotations of a declaration or parameter, and final parameters
+ * Add the java:enumconstant directive
  * Ship type hints (py.typed)
 
 javasphinx v0.9.16
