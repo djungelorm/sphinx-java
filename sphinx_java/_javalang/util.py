@@ -158,8 +158,7 @@ class LookAheadListIterator(object):
 
         saved = self.saved_markers.pop()
 
+        # sphinx-java: popping a nested marker without a reset leaves the outer marker in place
         if reset:
             self.marker = saved
-        elif self.saved_markers:
-            self.saved_markers[-1] = saved
 

@@ -423,6 +423,9 @@ def test_constructor_type_parameter_bounds(build):
     ('String A = "a = b";', 'String A = "a = b"'),
     ('int[] A = {1, 2}', 'int[] A = {1, 2}'),
     ('int A = 0', 'int A = 0'),
+    ('int[] A = (int[]) B', 'int[] A = (int[]) B'),
+    ('Entry<K, V>[] A = (Entry<K, V>[]) B', 'Entry<K, V>[] A = (Entry<K, V>[]) B'),
+    ('Map<K, V> A = new Map<>(null, (Entry<K, V>[]) B, 0)', 'Map<K, V> A = new Map<>(null, (Entry<K, V>[]) B, 0)'),
     ('@Size(max = 1) int A = 2', '@Size(max = 1) int A = 2'),
 ])
 def test_field_initializer(build, sig, text):

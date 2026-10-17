@@ -34,6 +34,7 @@ v1.0.0
  * Keep an annotation written after the modifiers, such as public @Nullable String, in its place
  * Link a nested type of an imported or java.lang type, such as Map.Entry, and an imported nested type by its simple name
  * Link the java.lang types added since Java 8, such as FunctionalInterface and Record
+ * Fix a syntax error on an array cast in a field initializer, such as (int[]) x
  * Ship type hints (py.typed)
 
 javasphinx v0.9.16
