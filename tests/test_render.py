@@ -220,6 +220,8 @@ def test_duplicate_warning(build):
     ('constructor', 'Foo(', 'syntax error in constructor signature'),
     ('field', 'int x(', 'syntax error in field signature'),
     ('field', 'int x()', 'expected field declaration'),
+    ('field', 'String x = "a', 'syntax error in field signature'),
+    ('constructor', 'String A =', 'syntax error in constructor signature'),
 ])
 def test_invalid_signature(build, directive, sig, message):
     app = build(f'.. java:{directive}:: {sig}\n   :outertype: Foo\n')

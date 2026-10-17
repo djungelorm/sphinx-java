@@ -16,7 +16,7 @@
 #
 
 import re
-from collections.abc import Iterator, Set
+from collections.abc import Callable, Iterator, Set
 from typing import Any, ClassVar, cast
 
 from docutils import nodes
@@ -98,6 +98,13 @@ class JavaObject(ObjectDescription[str]):
             ref['java:package'] = self.get_package()
 
         return ref
+
+    def _parse(self, parse: Callable[[str], Any], sig: str) -> Any:
+        try:
+            return parse(sig)
+        # The parser raises StopIteration for a signature that ends early
+        except (javalang.parser.JavaSyntaxError, javalang.tokenizer.LexerError, StopIteration):
+            raise self.error(f'syntax error in {self.objtype} signature') from None
 
     def _type_params(self) -> set[str]:
         """ The names of the type parameters in scope """
@@ -268,10 +275,7 @@ class JavaMethod(JavaObject):
     ]
 
     def handle_signature(self, sig: str, signode: desc_signature) -> str:
-        try:
-            member = javalang.parse.parse_member_signature(sig)
-        except javalang.parser.JavaSyntaxError:
-            raise self.error('syntax error in method signature') from None
+        member = self._parse(javalang.parse.parse_member_signature, sig)
 
         if not isinstance(member, javalang.tree.MethodDeclaration):
             raise self.error('expected method declaration')
@@ -307,10 +311,7 @@ class JavaConstructor(JavaObject):
     ]
 
     def handle_signature(self, sig: str, signode: desc_signature) -> str:
-        try:
-            member = javalang.parse.parse_constructor_signature(sig)
-        except javalang.parser.JavaSyntaxError:
-            raise self.error('syntax error in constructor signature') from None
+        member = self._parse(javalang.parse.parse_constructor_signature, sig)
 
         if not isinstance(member, javalang.tree.ConstructorDeclaration):
             raise self.error('expected constructor declaration')
@@ -340,10 +341,7 @@ class JavaType(JavaObject):
     declaration_type = ''
 
     def handle_signature(self, sig: str, signode: desc_signature) -> str:
-        try:
-            member = javalang.parse.parse_type_signature(sig)
-        except javalang.parser.JavaSyntaxError:
-            raise self.error('syntax error in type signature') from None
+        member = self._parse(javalang.parse.parse_type_signature, sig)
 
         declaration_types = {
             javalang.tree.ClassDeclaration: 'class',
@@ -389,10 +387,7 @@ class JavaType(JavaObject):
 
 class JavaField(JavaObject):
     def handle_signature(self, sig: str, signode: desc_signature) -> str:
-        try:
-            member = javalang.parse.parse_member_signature(sig)
-        except javalang.parser.JavaSyntaxError:
-            raise self.error('syntax error in field signature') from None
+        member = self._parse(javalang.parse.parse_member_signature, sig)
 
         if not isinstance(member, javalang.tree.FieldDeclaration):
             raise self.error('expected field declaration')
