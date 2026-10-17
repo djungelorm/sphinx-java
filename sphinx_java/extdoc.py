@@ -15,7 +15,6 @@
 # limitations under the License.
 #
 
-import re
 from collections.abc import Sequence
 from typing import Any
 
@@ -62,10 +61,12 @@ def _find_source(config: Config, text: str) -> tuple[str, str] | None:
 
 
 def _javadoc_anchor(ext_type: str, cls: str, method: str) -> str:
+    name, _, params = method.partition('(')
     if ext_type == 'javadoc8':
-        return re.sub(r'[()]', '-', method)
+        # Parameters are separated by dashes, and arrays are written :A
+        param_types = [param.strip().replace('[]', ':A') for param in params.rstrip(')').split(',')]
+        return name + '-' + '-'.join(filter(None, param_types)) + '-'
     if ext_type == 'javadoc11':
-        name, _, params = method.partition('(')
         # Constructors are named <init>
         if name == cls.rpartition('.')[2]:
             name = '%3Cinit%3E'

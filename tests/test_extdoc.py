@@ -48,6 +48,11 @@ def test_url(target, url):
 @pytest.mark.parametrize('version, target, url', [
     (8, 'java.util.List', JAVA_8 + 'java/util/List.html'),
     (8, 'java.util.List.get(int)', JAVA_8 + 'java/util/List.html#get-int-'),
+    (8, 'java.util.List.subList(int, int)', JAVA_8 + 'java/util/List.html#subList-int-int-'),
+    (8, 'java.util.List.size()', JAVA_8 + 'java/util/List.html#size--'),
+    (8, 'java.lang.String.String(char[])', JAVA_8 + 'java/lang/String.html#String-char:A-'),
+    (8, 'java.lang.String.format(java.lang.String, java.lang.Object...)',
+     JAVA_8 + 'java/lang/String.html#format-java.lang.String-java.lang.Object...-'),
     (8, 'javax.swing.JFrame', JAVA_8 + 'javax/swing/JFrame.html'),
     (11, 'java.util.List', 'https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/List.html'),
 ])

@@ -19,6 +19,7 @@ v1.0.0
  * Link the bounds of type parameters in signatures
  * Show the type parameters of a constructor signature
  * Link to the Java SE 25 docs, and choose the version with javadoc_java_se_version
+ * Fix the javadoc8 anchors of methods with several parameters or array parameters
  * Ship type hints (py.typed)
 
 javasphinx v0.9.16
