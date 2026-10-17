@@ -497,6 +497,8 @@ class Parser(object):
     @parse_debug
     def parse_type(self):
         java_type = None
+        # sphinx-java: type annotations
+        annotations = self.parse_type_annotations()
 
         if isinstance(self.tokens.look(), BasicType):
             java_type = self.parse_basic_type()
@@ -505,9 +507,23 @@ class Parser(object):
         else:
             self.illegal("Expected type")
 
+        java_type.annotations = annotations + (java_type.annotations or [])
         java_type.dimensions = self.parse_array_dimension()
 
         return java_type
+
+    # sphinx-java: type annotations
+    @parse_debug
+    def parse_type_annotations(self):
+        annotations = list()
+
+        while self.is_annotation():
+            token = self.tokens.look()
+            annotation = self.parse_annotation()
+            annotation._position = token.position
+            annotations.append(annotation)
+
+        return annotations
 
     @parse_debug
     def parse_basic_type(self):
@@ -519,6 +535,8 @@ class Parser(object):
         tail = reference_type
 
         while True:
+            # sphinx-java: type annotations
+            tail.annotations = self.parse_type_annotations()
             tail.name = self.parse_identifier()
 
             if self.would_accept('<'):
@@ -553,25 +571,33 @@ class Parser(object):
     def parse_type_argument(self):
         pattern_type = None
         base_type = None
+        # sphinx-java: type annotations
+        annotations = self.parse_type_annotations()
 
         if self.try_accept('?'):
             if self.tokens.look().value in ('extends', 'super'):
                 pattern_type = self.tokens.next().value
             else:
-                return tree.TypeArgument(pattern_type='?')
+                return tree.TypeArgument(pattern_type='?', annotations=annotations)
+            wildcard_annotations = annotations
+            annotations = self.parse_type_annotations()
+        else:
+            wildcard_annotations = []
 
         if self.would_accept(BasicType):
             base_type = self.parse_basic_type()
-            self.accept('[', ']')
-            base_type.dimensions = [None]
+            base_type.annotations = annotations
+            base_type.dimensions = self.parse_array_dimension()
+            if not base_type.dimensions:
+                self.illegal("Expected '['")
         else:
             base_type = self.parse_reference_type()
-            base_type.dimensions = []
-
-        base_type.dimensions += self.parse_array_dimension()
+            base_type.annotations = annotations + base_type.annotations
+            base_type.dimensions = self.parse_array_dimension()
 
         return tree.TypeArgument(type=base_type,
-                                 pattern_type=pattern_type)
+                                 pattern_type=pattern_type,
+                                 annotations=wildcard_annotations)
 
     @parse_debug
     def parse_nonwildcard_type_arguments(self):
@@ -586,13 +612,17 @@ class Parser(object):
         types = list()
 
         while True:
+            # sphinx-java: type annotations
+            annotations = self.parse_type_annotations()
             if self.would_accept(BasicType):
                 base_type = self.parse_basic_type()
                 self.accept('[', ']')
                 base_type.dimensions = [None]
+                base_type.annotations = annotations
             else:
                 base_type = self.parse_reference_type()
                 base_type.dimensions = []
+                base_type.annotations = annotations + base_type.annotations
 
             base_type.dimensions += self.parse_array_dimension()
             types.append(base_type)
@@ -635,6 +665,8 @@ class Parser(object):
 
     @parse_debug
     def parse_type_parameter(self):
+        # sphinx-java: type annotations
+        annotations = self.parse_type_annotations()
         identifier = self.parse_identifier()
         extends = None
 
@@ -649,16 +681,24 @@ class Parser(object):
                     break
 
         return tree.TypeParameter(name=identifier,
-                                  extends=extends)
+                                  extends=extends,
+                                  annotations=annotations)
 
+    # sphinx-java: type annotations, which belong to a dimension only when [ follows them
     @parse_debug
     def parse_array_dimension(self):
-        array_dimension = 0
+        array_dimension = list()
 
-        while self.try_accept('[', ']'):
-            array_dimension += 1
+        while True:
+            self.tokens.push_marker()
+            annotations = self.parse_type_annotations()
+            if not self.try_accept('[', ']'):
+                self.tokens.pop_marker(True)
+                break
+            self.tokens.pop_marker(False)
+            array_dimension.append(annotations or None)
 
-        return [None] * array_dimension
+        return array_dimension
 
 # ------------------------------------------------------------------------------
 # -- Annotations and modifiers --
@@ -1194,17 +1234,31 @@ class Parser(object):
             parameter_type = self.parse_type()
             varargs = False
 
+            # sphinx-java: type annotations, and receiver parameters
+            self.tokens.push_marker()
+            varargs_annotations = self.parse_type_annotations()
             if self.try_accept('...'):
+                self.tokens.pop_marker(False)
                 varargs = True
+            else:
+                self.tokens.pop_marker(True)
+                varargs_annotations = []
 
-            parameter_name = self.parse_identifier()
+            if self.try_accept('this'):
+                parameter_name = 'this'
+            elif self.would_accept(Identifier, '.', 'this'):
+                parameter_name = self.parse_identifier() + '.this'
+                self.accept('.', 'this')
+            else:
+                parameter_name = self.parse_identifier()
             parameter_type.dimensions += self.parse_array_dimension()
 
             parameter = tree.FormalParameter(modifiers=modifiers,
                                              annotations=annotations,
                                              type=parameter_type,
                                              name=parameter_name,
-                                             varargs=varargs)
+                                             varargs=varargs,
+                                             varargs_annotations=varargs_annotations)
 
             parameter._position = token.position
             formal_parameters.append(parameter)

@@ -56,10 +56,6 @@ def output_list(f: Callable[[Any, StringBuilder], object], items: Sequence[Any],
 
 @formatter
 def output_type(typ: Any, output: StringBuilder) -> None:
-    if not typ:
-        output.append('void')
-        return
-
     dim = '[]' * len(typ.dimensions) if typ.dimensions else ''
 
     if isinstance(typ, javalang.tree.BasicType):

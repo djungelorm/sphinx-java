@@ -61,8 +61,9 @@ class AnnotationDeclaration(TypeDeclaration):
 
 # ------------------------------------------------------------------------------
 
+# sphinx-java: type annotations, with a list of annotations or None for each dimension
 class Type(Node):
-    attrs = ("name", "dimensions",)
+    attrs = ("name", "dimensions", "annotations")
 
 class BasicType(Type):
     attrs = ()
@@ -70,13 +71,15 @@ class BasicType(Type):
 class ReferenceType(Type):
     attrs = ("arguments", "sub_type")
 
+# sphinx-java: type annotations, on a wildcard
 class TypeArgument(Node):
-    attrs = ("type", "pattern_type")
+    attrs = ("type", "pattern_type", "annotations")
 
 # ------------------------------------------------------------------------------
 
+# sphinx-java: type annotations
 class TypeParameter(Node):
-    attrs = ("name", "extends")
+    attrs = ("name", "extends", "annotations")
 
 # ------------------------------------------------------------------------------
 
@@ -120,8 +123,9 @@ class LocalVariableDeclaration(VariableDeclaration):
 class VariableDeclarator(Node):
     attrs = ("name", "dimensions", "initializer")
 
+# sphinx-java: type annotations
 class FormalParameter(Declaration):
-    attrs = ("type", "name", "varargs")
+    attrs = ("type", "name", "varargs", "varargs_annotations")
 
 class InferredFormalParameter(Node):
     attrs = ('name',)

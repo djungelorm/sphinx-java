@@ -45,7 +45,7 @@ Java Examples
 
 .. java:type:: public class Point
 
-   .. java:method:: public double[] getCoordinates()
+   .. java:method:: public double @Deprecated [] getCoordinates(Point this)
 
 .. java:type:: public enum Color implements java.io.Serializable
 

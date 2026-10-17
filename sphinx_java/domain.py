@@ -119,14 +119,34 @@ class JavaObject(ObjectDescription[str]):
         """ The names of the type parameters in scope """
         return _type_params_in_scope(self.env) | self.own_type_params
 
-    def _build_type_node(self, typ: Any) -> list[Node]:
-        if not isinstance(typ, javalang.tree.ReferenceType):
-            type_repr = formatter.output_type(typ).build()
-            return [nodes.Text(type_repr)]
+    def _build_annotations(self, annotations: list[Any] | None) -> list[Node]:
+        """ The annotations, each followed by a space """
+        parts: list[Node] = []
+        for annotation in annotations or []:
+            parts.append(nodes.Text('@'))
+            parts += self._build_type_node(_reference_type(annotation.name))
+            parts.append(nodes.Text(self.annotation_args.get(annotation.position, '') + ' '))
+        return parts
 
-        dim = '[]' * len(typ.dimensions) if typ.dimensions else ''
-        if not typ.sub_type and not typ.arguments and typ.name in self._type_params():
-            return [nodes.Text(typ.name + dim)]
+    def _build_dimensions(self, dimensions: list[Any] | None) -> list[Node]:
+        """ The array dimensions, each with its list of annotations or None """
+        parts: list[Node] = []
+        for annotations in dimensions or []:
+            if annotations:
+                parts.append(nodes.Text(' '))
+                parts += self._build_annotations(annotations)
+            parts.append(nodes.Text('[]'))
+        return parts
+
+    def _build_type_node(self, typ: Any) -> list[Node]:
+        if typ is None:
+            return [nodes.Text('void')]
+
+        annotations = self._build_annotations(typ.annotations)
+        dims = self._build_dimensions(typ.dimensions)
+        if not isinstance(typ, javalang.tree.ReferenceType) or (
+                not typ.sub_type and not typ.arguments and typ.name in self._type_params()):
+            return [*annotations, nodes.Text(typ.name), *dims]
 
         parts: list[Node] = []
 
@@ -147,6 +167,7 @@ class JavaObject(ObjectDescription[str]):
             target = typ.name
 
         while typ:
+            parts += self._build_annotations(typ.annotations)
             ref_node = self._build_ref_node(target)
             ref_node += nodes.Text(typ.name)
             parts.append(ref_node)
@@ -159,10 +180,8 @@ class JavaObject(ObjectDescription[str]):
             if typ:
                 target = target + '.' + typ.name
                 parts.append(nodes.Text('.'))
-            elif dim:
-                parts.append(nodes.Text(dim))
 
-        return parts
+        return parts + dims
 
     def _build_type_args(self, type_args: list[Any]) -> list[Node]:
         parts: list[Node] = [nodes.Text('<')]
@@ -170,6 +189,7 @@ class JavaObject(ObjectDescription[str]):
             if i > 0:
                 parts.append(nodes.Text(', '))
 
+            parts += self._build_annotations(type_arg.annotations)
             if type_arg.pattern_type == '?':
                 parts.append(nodes.Text('?'))
             else:
@@ -191,6 +211,7 @@ class JavaObject(ObjectDescription[str]):
         for i, type_param in enumerate(type_params):
             if i > 0:
                 parts.append(nodes.Text(', '))
+            parts += self._build_annotations(type_param.annotations)
             parts.append(nodes.Text(type_param.name))
             for j, bound in enumerate(type_param.extends or []):
                 parts.append(nodes.Text(' & ' if j else ' extends '))
@@ -206,6 +227,9 @@ class JavaObject(ObjectDescription[str]):
             param += self._build_type_node(parameter.type)
 
             if parameter.varargs:
+                if parameter.varargs_annotations:
+                    param += nodes.Text(' ')
+                    param += self._build_annotations(parameter.varargs_annotations)
                 param += nodes.Text('...')
 
             param += nodes.emphasis(' ' + parameter.name, ' ' + parameter.name)
@@ -219,11 +243,7 @@ class JavaObject(ObjectDescription[str]):
 
     def _build_modifiers(self, declaration: Any) -> list[Node]:
         """ The annotations and modifiers of a declaration, each followed by a space """
-        parts: list[Node] = []
-        for annotation in declaration.annotations:
-            parts.append(nodes.Text('@'))
-            parts += self._build_type_node(_reference_type(annotation.name))
-            parts.append(nodes.Text(self.annotation_args.get(annotation.position, '') + ' '))
+        parts = self._build_annotations(declaration.annotations)
         mods = formatter.output_modifiers(declaration.modifiers or set()).build()
         if mods:
             parts.append(nodes.Text(mods + ' '))
@@ -232,7 +252,9 @@ class JavaObject(ObjectDescription[str]):
     @staticmethod
     def _overload_name(member: Any) -> str:
         """ The name of a method or constructor with its parameter types, such as foo(int, List) """
-        param_reprs = [formatter.output_type(param.type).build() for param in member.parameters]
+        # Receiver parameters, such as Outer.this, are left out
+        param_reprs = [formatter.output_type(param.type).build() for param in member.parameters
+                       if param.name.rpartition('.')[2] != 'this']
         return f'{member.name}({", ".join(param_reprs)})'
 
     def get_index_text(self, name: str) -> str:

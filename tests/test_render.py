@@ -564,3 +564,35 @@ def test_sealed_member_names(build):
                 '.. java:field:: int sealed\n   :outertype: Foo\n')
     assert warnings(app) == []
     assert signatures(app) == {'Foo.sealed(int)': 'boolean sealed(int non)', 'Foo.sealed': 'int sealed'}
+
+
+@pytest.mark.parametrize('directive, sig, node_id, text', [
+    ('method', 'void a(List<@NonNull String> xs)', 'Foo.a(List)', None),
+    ('method', 'void a(String @NonNull [] xs)', 'Foo.a(String[])', None),
+    ('method', 'void a(String @A [] @B("x") [] xs)', 'Foo.a(String[][])', None),
+    ('method', 'void a(List<@A ? extends @B Number> xs)', 'Foo.a(List)', None),
+    ('method', 'void a(List<@A int[]> xs)', 'Foo.a(List)', None),
+    ('method', 'Outer.@A Inner a()', 'Foo.a()', None),
+    ('method', 'java.util.@NonNull List<String> a()', 'Foo.a()', None),
+    ('method', '<@A T extends @B Number> T a()', 'Foo.a()', None),
+    ('method', 'void a(@A int @B [] xs)', 'Foo.a(int[])', None),
+    ('method', 'void a(String @A ... xs)', 'Foo.a(String)', None),
+    ('method', 'void a(final @A Outer.@B Inner x)', 'Foo.a(Outer.Inner)', 'void a(@A final Outer.@B Inner x)'),
+    ('type', 'public class A<@B T> extends @C Base implements @D Other', 'A', None),
+    ('method', 'void a(Foo this, int x)', 'Foo.a(int)', None),
+    ('method', 'void a(@A Foo this)', 'Foo.a()', None),
+    ('constructor', 'Foo(Outer Outer.this, int x)', 'Foo.Foo(int)', None),
+])
+def test_type_annotations(build, directive, sig, node_id, text):
+    outertype = '' if directive == 'type' else '\n   :outertype: Foo'
+    app = build(f'.. java:{directive}:: {sig}{outertype}\n', nitpicky=False)
+    assert warnings(app) == []
+    assert signatures(app)[node_id] == (text or sig)
+
+
+def test_type_annotation_links(build):
+    app = build('.. java:method:: void a(java.util.List<@Deprecated String> xs)\n   :outertype: Foo\n')
+    assert warnings(app) == []
+    node = next(resolved_doctree(app).findall(addnodes.desc_signature))
+    assert [ref.astext() for ref in node.findall(lambda n: 'refuri' in n)] == ['java.util', 'List', 'Deprecated',
+                                                                              'String']

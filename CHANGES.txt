@@ -27,6 +27,7 @@ v1.0.0
  * Add the java:enumconstant directive
  * Support records and compact constructors
  * Support sealed and non-sealed types, and permits clauses
+ * Support type annotations and receiver parameters
  * Ship type hints (py.typed)
 
 javasphinx v0.9.16
