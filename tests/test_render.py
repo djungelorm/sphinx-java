@@ -223,7 +223,6 @@ def test_invalid_signature(build, directive, sig, message):
     assert any(message in line for line in warnings(app))
 
 
-@pytest.mark.xfail(reason='a type signature error says field')
 def test_invalid_type_signature(build):
     app = build('.. java:type:: class {\n')
     assert any('syntax error in type signature' in line for line in warnings(app))

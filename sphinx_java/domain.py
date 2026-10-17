@@ -321,7 +321,7 @@ class JavaType(JavaObject):
         try:
             member = javalang.parse.parse_type_signature(sig)
         except javalang.parser.JavaSyntaxError:
-            raise self.error('syntax error in field signature') from None
+            raise self.error('syntax error in type signature') from None
 
         declaration_types = {
             javalang.tree.ClassDeclaration: 'class',
