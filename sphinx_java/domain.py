@@ -93,10 +93,7 @@ class JavaObject(ObjectDescription[str]):
                                     classname=None)
         ref['java:outertype'] = self.get_type()
 
-        package = self.env.ref_context.get('java:imports', {}).get(target, None)
-
-        if not package and target in java_dot_lang:
-            package = 'java.lang'
+        package = _import_qualifier(self.env, target)
 
         if package:
             ref['java:imported'] = True
@@ -534,7 +531,12 @@ class JavaImport(SphinxDirective):
 
     def run(self) -> list[Node]:
         package, typename = self.arguments
-        self.env.ref_context.setdefault('java:imports', {})[typename] = package
+        imports = self.env.ref_context.setdefault('java:imports', {})
+        imports[typename] = package
+        # A nested type, such as Map.Entry, is also imported by its simple name
+        outer, _, name = typename.rpartition('.')
+        if outer:
+            imports[name] = package + '.' + outer
         return []
 
 
@@ -611,6 +613,16 @@ def _reference_type(name: str) -> Any:
     return typ
 
 
+def _import_qualifier(env: BuildEnvironment, target: str) -> str | None:
+    """ The package, or package and outer types, that qualify a type name through an import or java.lang """
+    imports = env.ref_context.get('java:imports', {})
+    first = target.partition('.')[0]
+    qualifier: str | None = imports.get(target) or imports.get(first)
+    if not qualifier and first in java_dot_lang:
+        qualifier = 'java.lang'
+    return qualifier
+
+
 def _type_param_names(member: Any) -> frozenset[str]:
     return frozenset(param.name for param in getattr(member, 'type_parameters', None) or [])
 
@@ -631,7 +643,7 @@ def _note_context(env: BuildEnvironment, refnode: Element, target: str) -> None:
         if '.' in basetype:
             basetype = basetype.rpartition('.')[0]
 
-    package = env.ref_context.get('java:imports', {}).get(basetype, None)
+    package = _import_qualifier(env, basetype)
 
     if package:
         refnode['java:imported'] = True
@@ -763,7 +775,7 @@ class JavaDomain(Domain):
     def external_ref(self, config: Config, target: str, node: pending_xref) -> nodes.reference | None:
         """ A reference to the external docs for a target """
         candidates = [target]
-        if target in java_dot_lang:
+        if target.partition('.')[0] in java_dot_lang:
             candidates.append('java.lang.' + target)
         if node.get('java:imported'):
             candidates.append(node['java:package'] + '.' + target)

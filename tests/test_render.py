@@ -628,3 +628,45 @@ def test_modifier_order(build, directive, sig, text):
     outertype = '' if directive == 'type' else '\n   :outertype: Foo'
     app = build(f'.. java:{directive}:: {sig}{outertype}\n', nitpicky=False)
     assert list(signatures(app).values()) == [text or sig]
+
+
+@pytest.mark.parametrize('sig, refs', [
+    ('Map.Entry<String, Integer> first()', {'Map': 'java/util/Map.html', 'Entry': 'java/util/Map.Entry.html',
+                                            'String': 'java/lang/String.html', 'Integer': 'java/lang/Integer.html'}),
+    ('void set(UncaughtExceptionHandler handler)',
+     {'UncaughtExceptionHandler': 'java/lang/Thread.UncaughtExceptionHandler.html'}),
+    ('void set(Thread.UncaughtExceptionHandler handler)',
+     {'Thread': 'java/lang/Thread.html', 'UncaughtExceptionHandler': 'java/lang/Thread.UncaughtExceptionHandler.html'}),
+    ('Thread.State state()', {'Thread': 'java/lang/Thread.html', 'State': 'java/lang/Thread.State.html'}),
+])
+def test_nested_imported_types(build, sig, refs):
+    app = build('.. java:import:: java.util Map\n\n.. java:import:: java.lang Thread.UncaughtExceptionHandler\n\n'
+                f'.. java:method:: {sig}\n   :outertype: Foo\n')
+    assert warnings(app) == []
+    node = next(resolved_doctree(app).findall(addnodes.desc_signature))
+    assert {ref.astext(): ref['refuri'] for ref in node.findall(lambda n: 'refuri' in n)} == {
+        text: API + path for text, path in refs.items()}
+
+
+def test_nested_imported_type_roles(build):
+    app = build('''
+.. java:package:: com.example
+
+.. java:type:: public class Outer
+
+   .. java:type:: public static class Inner
+
+.. java:package:: com.other
+
+.. java:import:: com.example Outer.Inner
+
+.. java:import:: java.util Map
+
+:java:type:`Inner`, :java:type:`Map.Entry`, :java:meth:`Map.Entry.getKey()`
+''')
+    assert warnings(app) == []
+    assert references(app) == {
+        'Inner': 'com.example.Outer.Inner',
+        'Map.Entry': API + 'java/util/Map.Entry.html',
+        'Map.Entry.getKey()': API + 'java/util/Map.Entry.html#getKey()',
+    }

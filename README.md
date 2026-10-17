@@ -47,7 +47,7 @@ See [`tests/roots/test-basic/index.rst`](https://github.com/djungelorm/sphinx-ja
 ## Directives
 
 - `java:package`: sets the package of the directives and references that follow, and is the target of references to the package. A package on several pages links to the first page by name. Add `:no-index:` to set the package without a target.
-- `java:import`: declares the package of a type, as in `.. java:import:: java.util List`. References to the type then link to that package's docs.
+- `java:import`: declares the package of a type, as in `.. java:import:: java.util List`. References to the type and its nested types, such as `Map.Entry`, then link to that package's docs. Import a nested type as in `.. java:import:: java.util Map.Entry`, and then refer to it as `Entry`.
 - `java:type`: a class, interface, enum, record or annotation. Document type parameters with `param` fields.
 - `java:constructor` and `java:method`: document parameters with `param` and exceptions with `throws`. A method also takes `return`.
 - `java:field`: one field.
