@@ -15,7 +15,7 @@
 #
 
 from collections.abc import Iterator, Set
-from typing import Any, ClassVar
+from typing import Any, ClassVar, cast
 
 from docutils import nodes
 from docutils.nodes import Element, Node
@@ -384,10 +384,10 @@ class JavaPackage(SphinxDirective):
         package = self.arguments[0].strip()
         noindex = 'no-index' in self.options or 'noindex' in self.options
         self.env.ref_context['java:package'] = package
-        self.env.domaindata['java']['objects'][package] = (self.env.docname, 'package', package)
         ret: list[Node] = []
 
         if not noindex:
+            cast('JavaDomain', self.env.get_domain('java')).note_package(package, self.env.docname)
             targetnode = nodes.target('', '', ids=['package-' + package], ismod=True)
             self.state.document.note_explicit_target(targetnode)
             ret.append(targetnode)
@@ -488,6 +488,12 @@ class JavaDomain(Domain):
         objects: dict[str, tuple[str, str, str]] = self.data['objects']
         return objects
 
+    def note_package(self, package: str, docname: str) -> None:
+        """ Record the page that documents a package. Of several pages, the first by name is used. """
+        existing = self.objects.get(package)
+        if existing is None or existing[1] != 'package' or docname < existing[0]:
+            self.objects[package] = (docname, 'package', package)
+
     def clear_doc(self, docname: str) -> None:
         for fullname, (fn, _objtype, _basename) in list(self.objects.items()):
             if fn == docname:
@@ -495,7 +501,11 @@ class JavaDomain(Domain):
 
     def merge_domaindata(self, docnames: Set[str], otherdata: dict[str, Any]) -> None:
         for fullname, data in otherdata['objects'].items():
-            if data[0] in docnames:
+            if data[0] not in docnames:
+                continue
+            if data[1] == 'package':
+                self.note_package(fullname, data[0])
+            else:
                 self.objects[fullname] = data
 
     def resolve_xref(self, env: BuildEnvironment, fromdocname: str, builder: Builder, typ: str, target: str,
@@ -506,7 +516,8 @@ class JavaDomain(Domain):
         type_context = node.get('java:outertype')
 
         def make_ref(fullname: str) -> nodes.reference:
-            return make_refnode(builder, fromdocname, objects[fullname][0], fullname, contnode, fullname)
+            docname, objtype, _basename = objects[fullname]
+            return make_refnode(builder, fromdocname, docname, _anchor(fullname, objtype), contnode, fullname)
 
         # Fully qualified reference
         if target in objects:
@@ -556,4 +567,9 @@ class JavaDomain(Domain):
 
     def get_objects(self) -> Iterator[tuple[str, str, str, str, str, int]]:
         for refname, (docname, objtype, _basename) in self.objects.items():
-            yield refname, refname, objtype, docname, refname, 1
+            yield refname, refname, objtype, docname, _anchor(refname, objtype), 1
+
+
+def _anchor(fullname: str, objtype: str) -> str:
+    """ The id of an object's target """
+    return 'package-' + fullname if objtype == 'package' else fullname

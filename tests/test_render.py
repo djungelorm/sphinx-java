@@ -113,12 +113,27 @@ def test_cross_page_reference(build):
     assert references(app) == {'com.example.Box': 'other.html#com.example.Box'}
 
 
-@pytest.mark.xfail(reason='a package reference links to an id the page does not have')
 def test_package_reference(build):
     app = build(':java:package:`com.example`', pages={
         'other': '.. java:package:: com.example\n',
     }, suppress_warnings=['toc.not_included'])
     assert references(app) == {'com.example': 'other.html#package-com.example'}
+
+
+@pytest.mark.parametrize('parallel', [0, 2])
+def test_package_on_several_pages(build, parallel):
+    pages = {f'page{i}': '.. java:package:: com.example\n' for i in range(4)}
+    app = build(':java:package:`com.example`', pages=pages, parallel=parallel,
+                suppress_warnings=['toc.not_included'])
+    assert references(app) == {'com.example': 'page0.html#package-com.example'}
+
+
+def test_package_no_index(build):
+    app = build(':java:package:`com.example`', pages={
+        'other': '.. java:package:: com.example\n   :no-index:\n',
+    }, suppress_warnings=['toc.not_included'])
+    assert references(app) == {}
+    assert any('reference target not found: com.example' in line for line in warnings(app))
 
 
 @pytest.mark.xfail(reason='the any role finds an object once for each role')
