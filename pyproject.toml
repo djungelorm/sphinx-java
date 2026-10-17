@@ -35,3 +35,37 @@ Homepage = "https://github.com/djungelorm/sphinx-java"
 
 [tool.hatch.build.targets.sdist]
 include = ["sphinx_java", "tests", "CHANGES.txt"]
+
+[tool.hatch.envs.lint]
+dependencies = ["ruff"]
+
+[tool.hatch.envs.lint.scripts]
+check = "ruff check sphinx_java tests scripts"
+
+[tool.hatch.envs.types]
+dependencies = ["mypy", "types-docutils"]
+
+[tool.hatch.envs.types.scripts]
+check = "mypy sphinx_java"
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+exclude = ["sphinx_java/_javalang/"]
+
+# The vendored parser is untyped
+[[tool.mypy.overrides]]
+module = "sphinx_java._javalang.*"
+ignore_errors = true
+follow_imports = "skip"
+
+[tool.ruff]
+line-length = 120
+extend-exclude = ["sphinx_java/_javalang"]
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "PL"]
+ignore = ["PLR2004"]
+
+[tool.ruff.lint.pylint]
+max-args = 10

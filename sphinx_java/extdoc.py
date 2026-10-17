@@ -29,15 +29,38 @@ JAVA_SE_DOCS = ('http://docs.oracle.com/javase/8/docs/api', 'javadoc8')
 JAVA_SE_PACKAGES = ('java', 'javax', 'org.xml', 'org.w3c')
 
 
-def get_javadoc_ref(config: Config, rawtext: str, text: str) -> nodes.reference | None:
-    """ A reference to the external docs for a fully qualified name, or None if no docs are configured for it """
+def _find_source(config: Config, text: str) -> tuple[str, str] | None:
+    """ The base URL and docs type for the longest package that text starts with """
     javadoc_url_map: dict[str, tuple[str, str]] = {
         **{package: JAVA_SE_DOCS for package in JAVA_SE_PACKAGES},
         **{package: source for package, source in config.javadoc_url_map.items() if source},
     }
+    matches = [package for package in javadoc_url_map if text.startswith(package + '.')]
+    if not matches:
+        return None
+    return javadoc_url_map[max(matches, key=len)]
 
-    source = None
-    package = ''
+
+def _build_url(baseurl: str, ext_type: str, package: str, cls: str, method: str | None) -> str:
+    if not baseurl.endswith('/'):
+        baseurl = baseurl + '/'
+    path = baseurl + package.replace('.', '/') + '/'
+
+    if ext_type in ('javadoc', 'javadoc8'):
+        url = path + (cls or 'package-summary') + '.html'
+        if method:
+            url += '#' + (method if ext_type == 'javadoc' else re.sub(r'[()]', '-', method))
+    elif ext_type == 'sphinx':
+        url = path + (cls.replace('.', '-') or 'package-index') + '.html'
+        if method:
+            url += '#' + package + '.' + (cls or 'package-index') + '.' + method
+    else:
+        raise ValueError('invalid target specifier ' + ext_type)
+    return url
+
+
+def get_javadoc_ref(config: Config, rawtext: str, text: str) -> nodes.reference | None:
+    """ A reference to the external docs for a fully qualified name, or None if no docs are configured for it """
     method = None
 
     if '(' in text:
@@ -49,16 +72,9 @@ def get_javadoc_ref(config: Config, rawtext: str, text: str) -> nodes.reference 
         except ValueError:
             pass
 
-    # The longest matching package
-    for pkg, (baseurl, ext_type) in javadoc_url_map.items():
-        if text.startswith(pkg + '.') and len(pkg) > len(package):
-            source = baseurl, ext_type
-            package = pkg
-
+    source = _find_source(config, text)
     if not source:
         return None
-
-    baseurl, ext_type = source
 
     package_parts = []
     cls_parts: list[str] = []
@@ -72,33 +88,9 @@ def get_javadoc_ref(config: Config, rawtext: str, text: str) -> nodes.reference 
     package = '.'.join(package_parts)
     cls = '.'.join(cls_parts)
 
-    if not baseurl.endswith('/'):
-        baseurl = baseurl + '/'
-
-    if ext_type == 'javadoc':
-        if not cls:
-            cls = 'package-summary'
-        url = baseurl + package.replace('.', '/') + '/' + cls + '.html'
-        if method:
-            url = url + '#' + method
-    elif ext_type == 'javadoc8':
-        if not cls:
-            cls = 'package-summary'
-        url = baseurl + package.replace('.', '/') + '/' + cls + '.html'
-        if method:
-            url = url + '#' + re.sub(r'[()]', '-', method)
-    elif ext_type == 'sphinx':
-        if not cls:
-            cls = 'package-index'
-        url = baseurl + package.replace('.', '/') + '/' + cls.replace('.', '-') + '.html'
-        if method:
-            url = url + '#' + package + '.' + cls + '.' + method
-    else:
-        raise ValueError('invalid target specifier ' + ext_type)
-
     title = '.'.join(filter(None, (package, cls, method)))
     node = nodes.reference(rawtext, '')
-    node['refuri'] = url
+    node['refuri'] = _build_url(*source, package, cls, method)
     node['reftitle'] = title
 
     return node

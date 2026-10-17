@@ -149,6 +149,12 @@ class JavaObject(ObjectDescription[str]):
             paramlist += param
         return paramlist
 
+    @staticmethod
+    def _overload_name(member: Any) -> str:
+        """ The name of a method or constructor with its parameter types, such as foo(int, List) """
+        param_reprs = [formatter.output_type(param.type, with_generics=False).build() for param in member.parameters]
+        return f'{member.name}({", ".join(param_reprs)})'
+
     def get_index_text(self, name: str) -> str:
         raise NotImplementedError
 
@@ -229,9 +235,7 @@ class JavaMethod(JavaObject):
         signode += addnodes.desc_name(member.name, member.name)
         signode += self._build_parameter_list(member.parameters)
 
-        param_reprs = [formatter.output_type(param.type, with_generics=False).build() for param in
-                       member.parameters]
-        return member.name + '(' + ', '.join(param_reprs) + ')'
+        return self._overload_name(member)
 
     def get_index_text(self, name: str) -> str:
         return _('%s (Java method)') % name
@@ -260,9 +264,7 @@ class JavaConstructor(JavaObject):
         signode += addnodes.desc_name(member.name, member.name)
         signode += self._build_parameter_list(member.parameters)
 
-        param_reprs = [formatter.output_type(param.type, with_generics=False).build() for param in
-                       member.parameters]
-        return '{}({})'.format(member.name, ', '.join(param_reprs))
+        return self._overload_name(member)
 
     def get_index_text(self, name: str) -> str:
         return _('%s (Java constructor)') % name
@@ -281,15 +283,14 @@ class JavaType(JavaObject):
         except javalang.parser.JavaSyntaxError:
             raise self.error('syntax error in field signature') from None
 
-        if isinstance(member, javalang.tree.ClassDeclaration):
-            self.declaration_type = 'class'
-        elif isinstance(member, javalang.tree.InterfaceDeclaration):
-            self.declaration_type = 'interface'
-        elif isinstance(member, javalang.tree.EnumDeclaration):
-            self.declaration_type = 'enum'
-        elif isinstance(member, javalang.tree.AnnotationDeclaration):
-            self.declaration_type = 'annotation'
-        else:
+        declaration_types = {
+            javalang.tree.ClassDeclaration: 'class',
+            javalang.tree.InterfaceDeclaration: 'interface',
+            javalang.tree.EnumDeclaration: 'enum',
+            javalang.tree.AnnotationDeclaration: 'annotation',
+        }
+        self.declaration_type = declaration_types.get(type(member))
+        if self.declaration_type is None:
             raise self.error('expected type declaration')
 
         mods = formatter.output_modifiers(member.modifiers).build()
