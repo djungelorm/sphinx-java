@@ -41,7 +41,6 @@ def app(build):
     return build(SOURCE)
 
 
-@pytest.mark.xfail(reason='type parameters and package names are references')
 def test_no_warnings(app):
     assert warnings(app) == []
 
@@ -101,6 +100,30 @@ def test_primitive_types_in_fields(build):
    :param double... c: C.
 ''')
     assert warnings(app) == []
+
+
+def test_qualified_names(build):
+    app = build('''
+.. java:package:: com.example
+
+.. java:type:: public class Box
+
+.. java:method:: java.util.List<com.example.Box> get(org.other.Thing thing)
+   :outertype: Other
+''')
+    assert warnings(app) == [
+        f'{app.srcdir / "index.rst"}:6: WARNING: java:type reference target not found: org.other.Thing [ref.type]',
+    ]
+    doctree = resolved_doctree(app)
+    node = list(doctree.findall(addnodes.desc_signature))[-1]
+    refs = [(ref.astext(), ref.get('refid') or ref.get('refuri'))
+            for ref in node.findall(lambda n: 'refuri' in n or 'refid' in n)]
+    assert refs == [
+        ('java.util', 'http://docs.oracle.com/javase/8/docs/api/java/util/package-summary.html'),
+        ('List', 'http://docs.oracle.com/javase/8/docs/api/java/util/List.html'),
+        ('com.example', 'package-com.example'),
+        ('Box', 'com.example.Box'),
+    ]
 
 
 def test_references(app):

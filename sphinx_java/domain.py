@@ -110,8 +110,23 @@ class JavaObject(ObjectDescription[str]):
         if not typ.sub_type and not typ.arguments and typ.name in self._type_params():
             return [nodes.Text(typ.name + dim)]
 
-        target = typ.name
         parts: list[Node] = []
+
+        # The package of a qualified name, as one reference
+        package = []
+        while typ.sub_type and not typ.arguments and typ.name[0].islower():
+            package.append(typ.name)
+            typ = typ.sub_type
+        if package:
+            target = '.'.join(package)
+            ref_node = self._build_ref_node(target)
+            ref_node['reftype'] = 'package'
+            ref_node['java:nowarn'] = True
+            ref_node += nodes.Text(target)
+            parts += [ref_node, nodes.Text('.')]
+            target += '.' + typ.name
+        else:
+            target = typ.name
 
         while typ:
             ref_node = self._build_ref_node(target)
@@ -119,20 +134,7 @@ class JavaObject(ObjectDescription[str]):
             parts.append(ref_node)
 
             if typ.arguments:
-                parts.append(nodes.Text('<'))
-
-                for i, type_arg in enumerate(typ.arguments):
-                    if i > 0:
-                        parts.append(nodes.Text(', '))
-
-                    if type_arg.pattern_type == '?':
-                        parts.append(nodes.Text('?'))
-                    else:
-                        if type_arg.pattern_type:
-                            parts.append(nodes.Text(f'? {type_arg.pattern_type} '))
-                        parts.extend(self._build_type_node(type_arg.type))
-
-                parts.append(nodes.Text('>'))
+                parts += self._build_type_args(typ.arguments)
 
             typ = typ.sub_type
 
@@ -142,6 +144,21 @@ class JavaObject(ObjectDescription[str]):
             elif dim:
                 parts.append(nodes.Text(dim))
 
+        return parts
+
+    def _build_type_args(self, type_args: list[Any]) -> list[Node]:
+        parts: list[Node] = [nodes.Text('<')]
+        for i, type_arg in enumerate(type_args):
+            if i > 0:
+                parts.append(nodes.Text(', '))
+
+            if type_arg.pattern_type == '?':
+                parts.append(nodes.Text('?'))
+            else:
+                if type_arg.pattern_type:
+                    parts.append(nodes.Text(f'? {type_arg.pattern_type} '))
+                parts.extend(self._build_type_node(type_arg.type))
+        parts.append(nodes.Text('>'))
         return parts
 
     def _build_type_node_list(self, types: list[Any]) -> list[Node]:
@@ -617,8 +634,8 @@ class JavaDomain(Domain):
 
 
 def suppress_missing_reference(app: Sphinx, domain: Domain, node: pending_xref) -> bool:
-    """ Whether to leave out the warning for a reference that is plain text by design """
-    return bool(node.get('java:plain'))
+    """ Whether to leave out the warning for a reference that is plain text by design, or optional """
+    return bool(node.get('java:plain') or node.get('java:nowarn'))
 
 
 def _anchor(fullname: str, objtype: str) -> str:
