@@ -2,7 +2,7 @@ v1.0.0
  * Rename the package from javasphinx to sphinx-java, and the extension from javasphinx to sphinx_java
  * Require Python 3.11+ and Sphinx 7.2+
  * Remove javasphinx-apidoc and its dependencies
- * Vendor the javalang parser
+ * Parse signatures with tree-sitter-java instead of javalang
  * Support parallel builds
  * Show type parameters and primitive types as plain text
  * Link the package of a qualified type name as one package reference

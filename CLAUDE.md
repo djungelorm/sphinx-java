@@ -23,14 +23,14 @@ The tests are in `tests` and run with pytest:
 - `test_extdoc.py`: the external Javadoc URLs and the `java:extdoc` role.
 - `test_projects.py`: builds `tests/roots/test-basic` in nitpicky mode and fails on any warning.
 
-Warnings fail the tests. Known bugs have tests marked `xfail`, and `xfail_strict` is on. A fix makes its test pass, which fails the run until the marker is removed. Coverage of `sphinx_java` must be 100%, apart from the vendored parser.
+Warnings fail the tests. Known bugs have tests marked `xfail`, and `xfail_strict` is on. A fix makes its test pass, which fails the run until the marker is removed. Coverage of `sphinx_java` must be 100%.
 
 To check a new feature, add rendering checks to `tests/test_render.py` and a directive using it to `tests/roots/test-basic/index.rst`.
 
 ## Architecture
 
 - **`__init__.py`**: `setup()` registers the domain, the `javadoc_url_map` and `javadoc_java_se_version` config values and the `java:extdoc` role. It connects `check_config` to `config-inited` and `suppress_missing_reference` to `warn-missing-reference`.
-- **Signature parsing** (`_javalang`): the parser from javalang 0.13.1, vendored without its Javadoc parser. It is excluded from ruff, mypy and coverage. Changes to it are marked `# sphinx-java:` and listed in `_javalang/PATCHES.md`, and the tests in `tests` cover them. `formatter.py` turns its syntax tree nodes back into strings.
+- **Signature parsing** (`syntax.py`): tree-sitter-java parses each signature wrapped in a minimal compilation unit, such as `class _ { sig; }` for a method. `syntax.py` turns the tree into a typed model of the declaration, with initializers and annotation arguments as written. A signature with a syntax error, or more than one declaration, raises `JavaSyntaxError`.
 - **Directives** (`domain.py`): `JavaObject` (an `ObjectDescription` subclass) is the base for `type`, `method`, `constructor`, `field` and `enumconstant`. Each subclass implements `handle_signature`, which parses the signature and returns the name. Methods and constructors are named with their parameter types, such as `wrap(U[], String)`. `_build_type_node` emits a `pending_xref` for each referenced type. `package` and `import` are plain directives.
 - **Scoping**: `env.ref_context` holds `java:package`, the `java:outertype` stack, the `java:typeparams` stack and the `java:imports` map. `before_content` and `after_content` push and pop the stacks for nested directives.
 - **Cross-references**: `_note_context` stores the package, type and import on each reference, from `JavaXRefRole.process_link` or `JavaDomain.process_field_xref`. It marks type parameters and primitive types `java:plain`, which never resolve and never warn. The package of a qualified name is marked `java:nowarn`. `JavaDomain.find_object` tries the target as written, then prefixed with the package and type, then by suffix. `external_ref` falls back to the external docs. Node ids are the full names, and a package's id is `package-` and its name.

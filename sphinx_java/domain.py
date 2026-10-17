@@ -16,8 +16,7 @@
 #
 
 import re
-from collections.abc import Callable, Iterator, Set
-from itertools import accumulate
+from collections.abc import Iterator, Set
 from typing import Any, ClassVar, cast
 
 from docutils import nodes
@@ -39,14 +38,15 @@ from sphinx.util.docutils import SphinxDirective
 from sphinx.util.nodes import make_refnode
 from sphinx.util.typing import OptionSpec
 
-from . import _javalang as javalang
-from . import extdoc, formatter
+from . import extdoc, syntax
 from .javase import JAVA_LANG_TYPES
+from .syntax import Annotation, Declaration, JavaSyntaxError, Modifiers, Parameter, Type, TypeArgument, TypeParameter
 
 logger = logging.getLogger(__name__)
 
-# The change in bracket depth at each bracket token
-BRACKET_DEPTHS = {'(': 1, '[': 1, '{': 1, ')': -1, ']': -1, '}': -1}
+# The order for displaying modifiers, from the Java Language Specification
+MODIFIERS_ORDER = ('public', 'protected', 'private', 'abstract', 'default', 'static', 'final', 'sealed',
+                   'non-sealed', 'transient', 'volatile', 'synchronized', 'native', 'strictfp')
 
 PRIMITIVE_TYPES = frozenset({'boolean', 'byte', 'char', 'short', 'int', 'long', 'float', 'double', 'void'})
 
@@ -54,10 +54,6 @@ PRIMITIVE_TYPES = frozenset({'boolean', 'byte', 'char', 'short', 'int', 'long', 
 class JavaObject(ObjectDescription[str]):
     # The type parameters that the signature declares
     own_type_params: frozenset[str] = frozenset()
-    # The arguments of each annotation in the signature, by position
-    annotation_args: dict[Any, str]
-    # The positions of the annotations written after a modifier
-    annotations_after_modifiers: set[Any]
 
     option_spec: ClassVar[OptionSpec] = {
         **ObjectDescription.option_spec,
@@ -81,121 +77,108 @@ class JavaObject(ObjectDescription[str]):
 
         return ref
 
-    def _parse(self, parse: Callable[[str], Any], sig: str) -> Any:
+    def _parse(self, sig: str) -> Declaration:
         try:
-            member = parse(sig)
-        # The parser raises StopIteration for a signature that ends early
-        except (javalang.parser.JavaSyntaxError, javalang.tokenizer.LexerError, StopIteration):
+            return syntax.parse(self.objtype, sig)
+        except JavaSyntaxError:
             lname = self.env.get_domain('java').object_types[self.objtype].lname
             raise self.error(f'syntax error in {lname} signature') from None
-        self.annotation_args, self.annotations_after_modifiers = _annotations(sig)
-        return member
 
     def _type_params(self) -> set[str]:
         """ The names of the type parameters in scope """
         return _type_params_in_scope(self.env) | self.own_type_params
 
-    def _build_annotations(self, annotations: list[Any] | None) -> list[Node]:
+    def _build_annotations(self, annotations: list[Annotation]) -> list[Node]:
         """ The annotations, each followed by a space """
         parts: list[Node] = []
-        for annotation in annotations or []:
+        for annotation in annotations:
             parts.append(nodes.Text('@'))
-            parts += self._build_type_node(_reference_type(annotation.name))
-            parts.append(nodes.Text(self.annotation_args.get(annotation.position, '') + ' '))
+            parts += self._build_type_node(Type.named(annotation.name))
+            parts.append(nodes.Text(annotation.arguments + ' '))
         return parts
 
-    def _build_dimensions(self, dimensions: list[Any] | None) -> list[Node]:
-        """ The array dimensions, each with its list of annotations or None """
+    def _build_dimensions(self, dimensions: list[list[Annotation]]) -> list[Node]:
+        """ The array dimensions, each with its annotations """
         parts: list[Node] = []
-        for annotations in dimensions or []:
+        for annotations in dimensions:
             if annotations:
                 parts.append(nodes.Text(' '))
                 parts += self._build_annotations(annotations)
             parts.append(nodes.Text('[]'))
         return parts
 
-    def _build_type_node(self, typ: Any) -> list[Node]:
-        if typ is None:
-            return [nodes.Text('void')]
-
-        annotations = self._build_annotations(typ.annotations)
+    def _build_type_node(self, typ: Type) -> list[Node]:
         dims = self._build_dimensions(typ.dimensions)
-        if not isinstance(typ, javalang.tree.ReferenceType) or (
-                not typ.sub_type and not typ.arguments and typ.name in self._type_params()):
-            return [*annotations, nodes.Text(typ.name), *dims]
+        segments = typ.segments
+        first = segments[0]
+        if len(segments) == 1 and not first.arguments and (
+                first.name in PRIMITIVE_TYPES or first.name in self._type_params()):
+            return [*self._build_annotations(first.annotations), nodes.Text(first.name), *dims]
 
         parts: list[Node] = []
 
         # The package of a qualified name, as one reference
         package = []
-        while typ.sub_type and not typ.arguments and typ.name[0].islower():
-            package.append(typ.name)
-            typ = typ.sub_type
+        while len(segments) > 1 and not segments[0].arguments and not segments[0].annotations \
+                and segments[0].name[0].islower():
+            package.append(segments[0].name)
+            segments = segments[1:]
+        target = '.'.join(package)
         if package:
-            target = '.'.join(package)
             ref_node = self._build_ref_node(target)
             ref_node['reftype'] = 'package'
             ref_node['java:nowarn'] = True
             ref_node += nodes.Text(target)
             parts += [ref_node, nodes.Text('.')]
-            target += '.' + typ.name
-        else:
-            target = typ.name
 
-        while typ:
-            parts += self._build_annotations(typ.annotations)
-            ref_node = self._build_ref_node(target)
-            ref_node += nodes.Text(typ.name)
-            parts.append(ref_node)
-
-            if typ.arguments:
-                parts += self._build_type_args(typ.arguments)
-
-            typ = typ.sub_type
-
-            if typ:
-                target = target + '.' + typ.name
+        for i, segment in enumerate(segments):
+            if i:
                 parts.append(nodes.Text('.'))
+            target = f'{target}.{segment.name}' if target else segment.name
+            parts += self._build_annotations(segment.annotations)
+            ref_node = self._build_ref_node(target)
+            ref_node += nodes.Text(segment.name)
+            parts.append(ref_node)
+            if segment.arguments:
+                parts += self._build_type_args(segment.arguments)
 
         return parts + dims
 
-    def _build_type_args(self, type_args: list[Any]) -> list[Node]:
+    def _build_type_args(self, type_args: list[TypeArgument]) -> list[Node]:
         parts: list[Node] = [nodes.Text('<')]
         for i, type_arg in enumerate(type_args):
             if i > 0:
                 parts.append(nodes.Text(', '))
 
             parts += self._build_annotations(type_arg.annotations)
-            if type_arg.pattern_type == '?':
-                parts.append(nodes.Text('?'))
-            else:
-                if type_arg.pattern_type:
-                    parts.append(nodes.Text(f'? {type_arg.pattern_type} '))
+            if type_arg.wildcard:
+                parts.append(nodes.Text('?' if type_arg.type is None else f'? {type_arg.wildcard} '))
+            if type_arg.type is not None:
                 parts.extend(self._build_type_node(type_arg.type))
         parts.append(nodes.Text('>'))
         return parts
 
-    def _build_type_node_list(self, types: list[Any]) -> list[Node]:
+    def _build_type_node_list(self, types: list[Type]) -> list[Node]:
         parts = self._build_type_node(types[0])
         for typ in types[1:]:
             parts.append(nodes.Text(', '))
             parts.extend(self._build_type_node(typ))
         return parts
 
-    def _build_type_params(self, type_params: list[Any]) -> list[Node]:
+    def _build_type_params(self, type_params: list[TypeParameter]) -> list[Node]:
         parts: list[Node] = [nodes.Text('<')]
         for i, type_param in enumerate(type_params):
             if i > 0:
                 parts.append(nodes.Text(', '))
             parts += self._build_annotations(type_param.annotations)
             parts.append(nodes.Text(type_param.name))
-            for j, bound in enumerate(type_param.extends or []):
+            for j, bound in enumerate(type_param.bounds):
                 parts.append(nodes.Text(' & ' if j else ' extends '))
                 parts.extend(self._build_type_node(bound))
         parts.append(nodes.Text('>'))
         return parts
 
-    def _build_parameter_list(self, parameters: list[Any]) -> addnodes.desc_parameterlist:
+    def _build_parameter_list(self, parameters: list[Parameter]) -> addnodes.desc_parameterlist:
         paramlist = addnodes.desc_parameterlist()
         for parameter in parameters:
             param = addnodes.desc_parameter('', '', noemph=True)
@@ -212,28 +195,25 @@ class JavaObject(ObjectDescription[str]):
             paramlist += param
         return paramlist
 
-    def _add_throws(self, signode: desc_signature, throws: list[str] | None) -> None:
+    def _add_throws(self, signode: desc_signature, throws: list[Type]) -> None:
         if throws:
             signode += nodes.Text(' throws ')
-            signode += self._build_type_node_list([_reference_type(name) for name in throws])
+            signode += self._build_type_node_list(throws)
 
-    def _build_modifiers(self, declaration: Any) -> list[Node]:
+    def _build_modifiers(self, declaration: Modifiers) -> list[Node]:
         """ The annotations and modifiers of a declaration, each followed by a space. An annotation written after
         a modifier, such as a type annotation on a return type, comes after the modifiers. """
-        before = [a for a in declaration.annotations if a.position not in self.annotations_after_modifiers]
-        after = [a for a in declaration.annotations if a.position in self.annotations_after_modifiers]
-        parts = self._build_annotations(before)
-        mods = formatter.output_modifiers(declaration.modifiers or set()).build()
+        parts = self._build_annotations(declaration.annotations)
+        mods = ' '.join(mod for mod in MODIFIERS_ORDER if mod in declaration.modifiers)
         if mods:
             parts.append(nodes.Text(mods + ' '))
-        return parts + self._build_annotations(after)
+        return parts + self._build_annotations(declaration.annotations_after_modifiers)
 
     @staticmethod
-    def _overload_name(member: Any) -> str:
+    def _overload_name(member: Declaration) -> str:
         """ The name of a method or constructor with its parameter types, such as foo(int, List) """
-        # Receiver parameters, such as Outer.this, are left out
-        param_reprs = [formatter.output_type(param.type).build() for param in member.parameters
-                       if param.name.rpartition('.')[2] != 'this']
+        param_reprs = ['.'.join(segment.name for segment in param.type.segments) + '[]' * len(param.type.dimensions)
+                       for param in member.parameters or [] if not param.receiver]
         return f'{member.name}({", ".join(param_reprs)})'
 
     def get_index_text(self, name: str) -> str:
@@ -292,9 +272,9 @@ class JavaMethod(JavaObject):
     ]
 
     def handle_signature(self, sig: str, signode: desc_signature) -> str:
-        member = self._parse(javalang.parse.parse_member_signature, sig)
+        member = self._parse(sig)
 
-        if not isinstance(member, javalang.tree.MethodDeclaration):
+        if member.kind != 'method':
             raise self.error('expected method declaration')
 
         self.own_type_params = _type_param_names(member)
@@ -305,17 +285,17 @@ class JavaMethod(JavaObject):
             signode += nodes.Text(' ')
 
         rnode = addnodes.desc_type('', '')
-        rnode += self._build_type_node(member.return_type)
+        rnode += self._build_type_node(cast(Type, member.type))
 
         signode += rnode
         signode += nodes.Text(' ')
         signode += addnodes.desc_name(member.name, member.name)
-        signode += self._build_parameter_list(member.parameters)
+        signode += self._build_parameter_list(member.parameters or [])
         self._add_throws(signode, member.throws)
 
         # The default value of an annotation element
-        if member.default is not None:
-            signode += nodes.Text(' default ' + _signature_text(sig, _top_level_tokens(sig, 'default')[-1]))
+        if member.value is not None:
+            signode += nodes.Text(' default ' + member.value)
 
         return self._overload_name(member)
 
@@ -332,9 +312,9 @@ class JavaConstructor(JavaObject):
     ]
 
     def handle_signature(self, sig: str, signode: desc_signature) -> str:
-        member = self._parse(javalang.parse.parse_constructor_signature, sig)
+        member = self._parse(sig)
 
-        if not isinstance(member, javalang.tree.ConstructorDeclaration):
+        if member.kind != 'constructor':
             raise self.error('expected constructor declaration')
         self.own_type_params = _type_param_names(member)
 
@@ -348,8 +328,7 @@ class JavaConstructor(JavaObject):
 
         # A compact constructor of a record has no parameter list
         if member.parameters is None:
-            name: str = member.name
-            return name
+            return member.name
 
         signode += self._build_parameter_list(member.parameters)
         self._add_throws(signode, member.throws)
@@ -368,16 +347,9 @@ class JavaType(JavaObject):
     declaration_type = ''
 
     def handle_signature(self, sig: str, signode: desc_signature) -> str:
-        member = self._parse(javalang.parse.parse_type_signature, sig)
+        member = self._parse(sig)
 
-        declaration_types = {
-            javalang.tree.ClassDeclaration: 'class',
-            javalang.tree.InterfaceDeclaration: 'interface',
-            javalang.tree.EnumDeclaration: 'enum',
-            javalang.tree.AnnotationDeclaration: 'annotation',
-            javalang.tree.RecordDeclaration: 'record',
-        }
-        self.declaration_type = declaration_types[type(member)]
+        self.declaration_type = member.kind
         self.own_type_params = _type_param_names(member)
 
         signode += self._build_modifiers(member)
@@ -387,34 +359,19 @@ class JavaType(JavaObject):
 
         signode += addnodes.desc_name(member.name, member.name)
 
-        if self.declaration_type in ('class', 'interface', 'record') and member.type_parameters:
+        if member.type_parameters:
             signode += self._build_type_params(member.type_parameters)
 
-        if self.declaration_type == 'record':
+        if member.parameters is not None:
             signode += self._build_parameter_list(member.parameters)
 
-        if self.declaration_type == 'class':
-            if member.extends:
-                signode += nodes.Text(' extends ')
-                signode += self._build_type_node(member.extends)
-            if member.implements:
-                signode += nodes.Text(' implements ')
-                signode += self._build_type_node_list(member.implements)
-        elif self.declaration_type == 'interface':
-            if member.extends:
-                signode += nodes.Text(' extends ')
-                signode += self._build_type_node_list(member.extends)
-        elif self.declaration_type in ('enum', 'record'):
-            if member.implements:
-                signode += nodes.Text(' implements ')
-                signode += self._build_type_node_list(member.implements)
+        for keyword, types in (('extends', member.extends), ('implements', member.implements),
+                               ('permits', member.permits)):
+            if types:
+                signode += nodes.Text(f' {keyword} ')
+                signode += self._build_type_node_list(types)
 
-        if self.declaration_type in ('class', 'interface') and member.permits:
-            signode += nodes.Text(' permits ')
-            signode += self._build_type_node_list(member.permits)
-
-        name: str = member.name
-        return name
+        return member.name
 
     def get_index_text(self, name: str) -> str:
         return _('%s (Java %s)') % (name, self.declaration_type)
@@ -422,33 +379,28 @@ class JavaType(JavaObject):
 
 class JavaField(JavaObject):
     def handle_signature(self, sig: str, signode: desc_signature) -> str:
-        member = self._parse(javalang.parse.parse_member_signature, sig)
+        member = self._parse(sig)
 
-        if not isinstance(member, javalang.tree.FieldDeclaration):
+        if member.kind != 'field':
             raise self.error('expected field declaration')
+
+        if member.declarators > 1:
+            raise self.error('only one field may be documented at a time')
 
         signode += self._build_modifiers(member)
 
         tnode = addnodes.desc_type('', '')
-        tnode += self._build_type_node(member.type)
+        tnode += self._build_type_node(cast(Type, member.type))
 
         signode += tnode
         signode += nodes.Text(' ')
+        signode += addnodes.desc_name(member.name, member.name)
+        signode += nodes.Text('[]' * member.dimensions)
 
-        if len(member.declarators) > 1:
-            raise self.error('only one field may be documented at a time')
+        if member.value is not None:
+            signode += nodes.Text(' = ' + member.value)
 
-        declarator = member.declarators[0]
-        signode += addnodes.desc_name(declarator.name, declarator.name)
-
-        dim = '[]' * len(declarator.dimensions)
-        signode += nodes.Text(dim)
-
-        if declarator.initializer:
-            signode += nodes.Text(' = ' + _initializer(sig))
-
-        name: str = declarator.name
-        return name
+        return member.name
 
     def get_index_text(self, name: str) -> str:
         return _('%s (Java field)') % name
@@ -456,13 +408,12 @@ class JavaField(JavaObject):
 
 class JavaEnumConstant(JavaObject):
     def handle_signature(self, sig: str, signode: desc_signature) -> str:
-        constant = self._parse(_parse_enum_constant, sig)
+        constant = self._parse(sig)
         signode += self._build_modifiers(constant)
         signode += addnodes.desc_name(constant.name, constant.name)
-        if constant.arguments is not None:
-            signode += nodes.Text(_enum_constant_args(sig))
-        name: str = constant.name
-        return name
+        if constant.value is not None:
+            signode += nodes.Text(constant.value)
+        return constant.name
 
     def get_index_text(self, name: str) -> str:
         return _('%s (Java enum constant)') % name
@@ -517,79 +468,6 @@ class JavaImport(SphinxDirective):
         return []
 
 
-def _annotations(sig: str) -> tuple[dict[Any, str], set[Any]]:
-    """ The arguments of each annotation in a signature as written, such as ("unchecked"), by the position of its
-    @, and the positions of the annotations written after a modifier """
-    tokens = list(javalang.tokenizer.tokenize(sig))
-    args = {}
-    after_modifier = set()
-    # The index of the @ of each annotation, by the index of its last token
-    starts: dict[int, int] = {}
-    for i, token in enumerate(tokens):
-        if token.value != '@' or tokens[i + 1].value == 'interface':
-            continue
-        # Skip the qualified name
-        last = i + 1
-        while tokens[last + 1].value == '.':
-            last += 2
-        if tokens[last + 1].value == '(':
-            paren = tokens[last + 1]
-            depths = accumulate(BRACKET_DEPTHS.get(t.value, 0) for t in tokens[last + 1:])
-            last += 1 + next(j for j, depth in enumerate(depths) if not depth)
-            args[token.position] = sig[paren.position.column - 1:tokens[last].position.column]
-        starts[last] = i
-
-        # The token before this annotation and any annotations just before it
-        before = i - 1
-        while before in starts:
-            before = starts[before] - 1
-        modifier = before >= 0 and (isinstance(tokens[before], javalang.tokenizer.Modifier)
-                                    or tokens[before].value == 'sealed')
-        if modifier:
-            after_modifier.add(token.position)
-    return args, after_modifier
-
-
-def _parse_enum_constant(sig: str) -> Any:
-    parser = javalang.parser.Parser(javalang.tokenizer.tokenize(sig))
-    constant = parser.parse_enum_constant()
-    if not parser.would_accept(javalang.tokenizer.EndOfInput):
-        parser.illegal('Expected end of signature')
-    return constant
-
-
-def _top_level_tokens(sig: str, value: str) -> list[Any]:
-    """ The tokens of a signature with a value, such as =, outside brackets """
-    tokens = list(javalang.tokenizer.tokenize(sig))
-    depths = accumulate((BRACKET_DEPTHS.get(token.value, 0) for token in tokens), initial=0)
-    return [token for token, depth in zip(tokens, depths, strict=False) if token.value == value and not depth]
-
-
-def _signature_text(sig: str, token: Any, after: bool = True) -> str:
-    """ The signature text after a token, or from it, as written without a trailing ; """
-    # Columns start at 1, and a signature is one line
-    start = token.position.column - 1 + (len(token.value) if after else 0)
-    return sig[start:].strip().removesuffix(';').rstrip()
-
-
-def _enum_constant_args(sig: str) -> str:
-    """ The arguments of an enum constant signature as written, from the last ( outside brackets """
-    return _signature_text(sig, _top_level_tokens(sig, '(')[-1], after=False)
-
-
-def _initializer(sig: str) -> str:
-    """ The initializer of a field signature as written, such as 1 << 3 """
-    return _signature_text(sig, _top_level_tokens(sig, '=')[0])
-
-
-def _reference_type(name: str) -> Any:
-    """ The syntax tree node for a qualified type name, such as java.io.IOException """
-    typ = None
-    for part in reversed(name.split('.')):
-        typ = javalang.tree.ReferenceType(name=part, sub_type=typ)
-    return typ
-
-
 def _import_qualifier(env: BuildEnvironment, target: str) -> str | None:
     """ The package, or package and outer types, that qualify a type name through an import or java.lang """
     imports = env.ref_context.get('java:imports', {})
@@ -600,8 +478,8 @@ def _import_qualifier(env: BuildEnvironment, target: str) -> str | None:
     return qualifier
 
 
-def _type_param_names(member: Any) -> frozenset[str]:
-    return frozenset(param.name for param in getattr(member, 'type_parameters', None) or [])
+def _type_param_names(member: Declaration) -> frozenset[str]:
+    return frozenset(param.name for param in member.type_parameters)
 
 
 def _type_params_in_scope(env: BuildEnvironment) -> set[str]:

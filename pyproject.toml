@@ -7,14 +7,14 @@ name = "sphinx-java"
 version = "1.0.0rc1"
 description = "Java domain for Sphinx"
 readme = "README.md"
-license = "Apache-2.0 AND MIT"
-license-files = ["LICENSE", "sphinx_java/_javalang/LICENSE"]
+license = "Apache-2.0"
+license-files = ["LICENSE"]
 authors = [
     { name = "djungelorm", email = "djungelorm@users.noreply.github.com" },
     { name = "Chris Thunes" },
 ]
 requires-python = ">=3.11"
-dependencies = ["Sphinx>=7.2"]
+dependencies = ["Sphinx>=7.2", "tree-sitter>=0.23", "tree-sitter-java>=0.23.5"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
@@ -51,17 +51,9 @@ check = "mypy sphinx_java"
 [tool.mypy]
 python_version = "3.11"
 strict = true
-exclude = ["sphinx_java/_javalang/"]
-
-# The vendored parser is untyped
-[[tool.mypy.overrides]]
-module = "sphinx_java._javalang.*"
-ignore_errors = true
-follow_imports = "skip"
 
 [tool.ruff]
 line-length = 120
-extend-exclude = ["sphinx_java/_javalang"]
 
 [tool.ruff.lint]
 select = ["E", "W", "F", "I", "PL"]
@@ -108,7 +100,6 @@ filterwarnings = ["error"]
 
 [tool.coverage.run]
 branch = true
-omit = ["sphinx_java/_javalang/*"]
 
 [tool.coverage.report]
 fail_under = 100

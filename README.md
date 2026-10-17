@@ -102,4 +102,4 @@ Change the extension name in your `conf.py` from `javasphinx` to `sphinx_java`. 
 
 ## License
 
-Apache 2.0, from javasphinx. The vendored Java parser from [javalang](https://github.com/c2nes/javalang) is MIT licensed, see `sphinx_java/_javalang/LICENSE`.
+Apache 2.0, from javasphinx.

@@ -222,14 +222,17 @@ def test_duplicate_warning(build):
     ('field', 'int x()', 'expected field declaration'),
     ('field', 'String x = "a', 'syntax error in field signature'),
     ('constructor', 'String A =', 'syntax error in constructor signature'),
+    ('method', 'void a(); } class B { void b()', 'syntax error in method signature'),
+    ('field', 'int... x', 'syntax error in field signature'),
 ])
 def test_invalid_signature(build, directive, sig, message):
     app = build(f'.. java:{directive}:: {sig}\n   :outertype: Foo\n')
     assert any(message in line for line in warnings(app))
 
 
-def test_invalid_type_signature(build):
-    app = build('.. java:type:: class {\n')
+@pytest.mark.parametrize('sig', ['class {', 'void a()'])
+def test_invalid_type_signature(build, sig):
+    app = build(f'.. java:type:: {sig}\n')
     assert any('syntax error in type signature' in line for line in warnings(app))
 
 
@@ -258,6 +261,17 @@ def test_parallel_build(build):
 ])
 def test_method_types(build, sig, node_id, text):
     app = build(f'.. java:method:: {sig}\n   :outertype: Foo\n', nitpicky=False)
+    assert warnings(app) == []
+    assert signatures(app)[node_id] == text
+
+
+@pytest.mark.parametrize('directive, sig, node_id, text', [
+    ('method', 'int a()[]', 'Foo.a()', 'int[] a()'),
+    ('method', 'void a(int xs[])', 'Foo.a(int[])', 'void a(int[] xs)'),
+    ('field', 'int a[]', 'Foo.a', 'int a[]'),
+])
+def test_legacy_arrays(build, directive, sig, node_id, text):
+    app = build(f'.. java:{directive}:: {sig}\n   :outertype: Foo\n')
     assert warnings(app) == []
     assert signatures(app)[node_id] == text
 
@@ -589,6 +603,7 @@ def test_sealed_member_names(build):
     ('method', 'void a(Foo this, int x)', 'Foo.a(int)', None),
     ('method', 'void a(@A Foo this)', 'Foo.a()', None),
     ('constructor', 'Foo(Outer Outer.this, int x)', 'Foo.Foo(int)', None),
+    ('method', 'public <T> @Nullable T a()', 'Foo.a()', None),
 ])
 def test_type_annotations(build, directive, sig, node_id, text):
     outertype = '' if directive == 'type' else '\n   :outertype: Foo'
