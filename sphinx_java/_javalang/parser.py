@@ -358,6 +358,9 @@ class Parser(object):
             type_declaration = self.parse_normal_interface_declaration()
         elif self.is_annotation_declaration():
             type_declaration = self.parse_annotation_type_declaration()
+        # sphinx-java: records
+        elif self.would_accept('record', Identifier):
+            type_declaration = self.parse_record_declaration()
         else:
             self.illegal("Expected type declaration")
 
@@ -450,6 +453,31 @@ class Parser(object):
 
         return tree.AnnotationDeclaration(name=name,
                                           body=body)
+
+    # sphinx-java: records
+    @parse_debug
+    def parse_record_declaration(self):
+        type_params = None
+        implements = None
+
+        self.accept('record')
+        name = self.parse_identifier()
+
+        if self.would_accept('<'):
+            type_params = self.parse_type_parameters()
+
+        parameters = self.parse_formal_parameters()
+
+        if self.try_accept('implements'):
+            implements = self.parse_type_list()
+
+        body = self.parse_class_body()
+
+        return tree.RecordDeclaration(name=name,
+                                      type_parameters=type_params,
+                                      parameters=parameters,
+                                      implements=implements,
+                                      body=body)
 
 # ------------------------------------------------------------------------------
 # -- Types --
@@ -818,6 +846,11 @@ class Parser(object):
             constructor_name = self.parse_identifier()
             member = self.parse_constructor_declarator_rest()
             member.name = constructor_name
+
+        # sphinx-java: compact constructors of records
+        elif self.would_accept(Identifier, '{'):
+            constructor_name = self.parse_identifier()
+            member = tree.ConstructorDeclaration(name=constructor_name, body=self.parse_block())
 
         else:
             member = self.parse_method_or_field_declaraction()

@@ -50,6 +50,10 @@ class EnumDeclaration(TypeDeclaration):
 class InterfaceDeclaration(TypeDeclaration):
     attrs = ("type_parameters", "extends",)
 
+# sphinx-java: records
+class RecordDeclaration(TypeDeclaration):
+    attrs = ("type_parameters", "parameters", "implements")
+
 class AnnotationDeclaration(TypeDeclaration):
     attrs = ()
 

@@ -25,6 +25,7 @@ v1.0.0
  * Show the initializer of a field as written, such as -1 or Integer.MAX_VALUE
  * Show the annotations of a declaration or parameter, and final parameters
  * Add the java:enumconstant directive
+ * Support records and compact constructors
  * Ship type hints (py.typed)
 
 javasphinx v0.9.16

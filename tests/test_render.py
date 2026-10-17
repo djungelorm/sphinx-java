@@ -504,3 +504,41 @@ def test_enum_constant_references(build):
 def test_invalid_enum_constant(build, sig):
     app = build(f'.. java:enumconstant:: {sig}\n   :outertype: Color\n')
     assert any('syntax error in enum constant signature' in line for line in warnings(app))
+
+
+@pytest.mark.parametrize('sig, text', [
+    ('public record Point(int x, int y)', None),
+    ('public record Box<T extends Number>(T value, String... labels) implements Comparable<Box<T>>', None),
+    ('record Empty()', None),
+    ('public record Named(@NonNull String name)', None),
+])
+def test_record(build, sig, text):
+    app = build(f'.. java:type:: {sig}\n', nitpicky=False)
+    assert warnings(app) == []
+    assert list(signatures(app).values()) == [text or sig]
+
+
+def test_record_members(build):
+    app = build('''
+.. java:package:: com.example
+
+.. java:type:: public record Range<T>(T low, T high)
+
+   .. java:constructor:: public Range
+
+   .. java:constructor:: public Range(T value)
+
+   .. java:method:: public T low()
+
+:java:construct:`Range.Range`, :java:construct:`Range(T)`
+''')
+    assert warnings(app) == []
+    assert signatures(app) == {
+        'com.example.Range': 'public record Range<T>(T low, T high)',
+        'com.example.Range.Range': 'public Range',
+        'com.example.Range.Range(T)': 'public Range(T value)',
+        'com.example.Range.low()': 'public T low()',
+    }
+    assert references(app) == {'Range.Range': 'com.example.Range.Range', 'Range(T)': 'com.example.Range.Range(T)'}
+    entries = [entry[1] for node in resolved_doctree(app).findall(addnodes.index) for entry in node['entries']]
+    assert 'Range (Java record)' in entries

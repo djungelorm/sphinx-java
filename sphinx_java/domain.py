@@ -340,6 +340,12 @@ class JavaConstructor(JavaObject):
             signode += nodes.Text(' ')
 
         signode += addnodes.desc_name(member.name, member.name)
+
+        # A compact constructor of a record has no parameter list
+        if member.parameters is None:
+            name: str = member.name
+            return name
+
         signode += self._build_parameter_list(member.parameters)
         self._add_throws(signode, member.throws)
 
@@ -364,6 +370,7 @@ class JavaType(JavaObject):
             javalang.tree.InterfaceDeclaration: 'interface',
             javalang.tree.EnumDeclaration: 'enum',
             javalang.tree.AnnotationDeclaration: 'annotation',
+            javalang.tree.RecordDeclaration: 'record',
         }
         self.declaration_type = declaration_types[type(member)]
         self.own_type_params = _type_param_names(member)
@@ -375,8 +382,11 @@ class JavaType(JavaObject):
 
         signode += addnodes.desc_name(member.name, member.name)
 
-        if self.declaration_type in ('class', 'interface') and member.type_parameters:
+        if self.declaration_type in ('class', 'interface', 'record') and member.type_parameters:
             signode += self._build_type_params(member.type_parameters)
+
+        if self.declaration_type == 'record':
+            signode += self._build_parameter_list(member.parameters)
 
         if self.declaration_type == 'class':
             if member.extends:
@@ -389,7 +399,7 @@ class JavaType(JavaObject):
             if member.extends:
                 signode += nodes.Text(' extends ')
                 signode += self._build_type_node_list(member.extends)
-        elif self.declaration_type == 'enum':
+        elif self.declaration_type in ('enum', 'record'):
             if member.implements:
                 signode += nodes.Text(' implements ')
                 signode += self._build_type_node_list(member.implements)

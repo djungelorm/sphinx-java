@@ -39,6 +39,10 @@ Java Examples
 
    .. java:method:: @SafeVarargs public static Polygon<Point> of(final Point... points)
 
+.. java:type:: public record Segment(Point start, Point end)
+
+   .. java:constructor:: public Segment
+
 .. java:type:: public class Point
 
    .. java:method:: public double[] getCoordinates()
