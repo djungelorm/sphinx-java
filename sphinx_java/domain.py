@@ -26,8 +26,8 @@ from sphinx.roles import XRefRole
 from sphinx.util.docfields import Field, TypedField, GroupedField
 from sphinx.util.nodes import make_refnode
 
-import javasphinx.extdoc as extdoc
-import javasphinx.formatter as formatter
+import sphinx_java.extdoc as extdoc
+import sphinx_java.formatter as formatter
 
 # Classes in java.lang. These are available without an import.
 java_dot_lang = {'AbstractMethodError', 'Appendable', 'ArithmeticException', 'ArrayIndexOutOfBoundsException',

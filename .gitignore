@@ -1,5 +1,5 @@
-*.pyc
 dist/
-*.egg-info/
-.vscode
-.DS_Store
+test-output/
+__pycache__/
+.coverage
+.coverage.*

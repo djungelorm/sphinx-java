@@ -1,0 +1,37 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "sphinx-java"
+version = "1.0.0rc1"
+description = "Java domain for Sphinx"
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+authors = [
+    { name = "djungelorm", email = "djungelorm@users.noreply.github.com" },
+    { name = "Chris Thunes" },
+]
+requires-python = ">=3.11"
+dependencies = ["Sphinx>=7.2", "javalang>=0.13"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Natural Language :: English",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: 3.15",
+    "Topic :: Documentation :: Sphinx",
+]
+
+[project.urls]
+Homepage = "https://github.com/djungelorm/sphinx-java"
+
+[tool.hatch.build.targets.sdist]
+include = ["sphinx_java", "tests", "CHANGES.txt"]
