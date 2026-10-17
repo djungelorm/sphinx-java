@@ -79,6 +79,8 @@ class JavaObject(ObjectDescription[str]):
     own_type_params: frozenset[str] = frozenset()
     # The arguments of each annotation in the signature, by position
     annotation_args: dict[Any, str]
+    # The positions of the annotations written after a modifier
+    annotations_after_modifiers: set[Any]
 
     option_spec: ClassVar[OptionSpec] = {
         **ObjectDescription.option_spec,
@@ -112,7 +114,7 @@ class JavaObject(ObjectDescription[str]):
         except (javalang.parser.JavaSyntaxError, javalang.tokenizer.LexerError, StopIteration):
             lname = self.env.get_domain('java').object_types[self.objtype].lname
             raise self.error(f'syntax error in {lname} signature') from None
-        self.annotation_args = _annotation_args(sig)
+        self.annotation_args, self.annotations_after_modifiers = _annotations(sig)
         return member
 
     def _type_params(self) -> set[str]:
@@ -242,12 +244,15 @@ class JavaObject(ObjectDescription[str]):
             signode += self._build_type_node_list([_reference_type(name) for name in throws])
 
     def _build_modifiers(self, declaration: Any) -> list[Node]:
-        """ The annotations and modifiers of a declaration, each followed by a space """
-        parts = self._build_annotations(declaration.annotations)
+        """ The annotations and modifiers of a declaration, each followed by a space. An annotation written after
+        a modifier, such as a type annotation on a return type, comes after the modifiers. """
+        before = [a for a in declaration.annotations if a.position not in self.annotations_after_modifiers]
+        after = [a for a in declaration.annotations if a.position in self.annotations_after_modifiers]
+        parts = self._build_annotations(before)
         mods = formatter.output_modifiers(declaration.modifiers or set()).build()
         if mods:
             parts.append(nodes.Text(mods + ' '))
-        return parts
+        return parts + self._build_annotations(after)
 
     @staticmethod
     def _overload_name(member: Any) -> str:
@@ -533,22 +538,37 @@ class JavaImport(SphinxDirective):
         return []
 
 
-def _annotation_args(sig: str) -> dict[Any, str]:
-    """ The arguments of each annotation in a signature as written, such as ("unchecked"), by the position of its @ """
+def _annotations(sig: str) -> tuple[dict[Any, str], set[Any]]:
+    """ The arguments of each annotation in a signature as written, such as ("unchecked"), by the position of its
+    @, and the positions of the annotations written after a modifier """
     tokens = list(javalang.tokenizer.tokenize(sig))
     args = {}
+    after_modifier = set()
+    # The index of the @ of each annotation, by the index of its last token
+    starts: dict[int, int] = {}
     for i, token in enumerate(tokens):
         if token.value != '@' or tokens[i + 1].value == 'interface':
             continue
         # Skip the qualified name
-        start = i + 2
-        while tokens[start].value == '.':
-            start += 2
-        if tokens[start].value == '(':
-            depths = accumulate(BRACKET_DEPTHS.get(t.value, 0) for t in tokens[start:])
-            end = next(t for t, depth in zip(tokens[start:], depths, strict=True) if not depth)
-            args[token.position] = sig[tokens[start].position.column - 1:end.position.column]
-    return args
+        last = i + 1
+        while tokens[last + 1].value == '.':
+            last += 2
+        if tokens[last + 1].value == '(':
+            paren = tokens[last + 1]
+            depths = accumulate(BRACKET_DEPTHS.get(t.value, 0) for t in tokens[last + 1:])
+            last += 1 + next(j for j, depth in enumerate(depths) if not depth)
+            args[token.position] = sig[paren.position.column - 1:tokens[last].position.column]
+        starts[last] = i
+
+        # The token before this annotation and any annotations just before it
+        before = i - 1
+        while before in starts:
+            before = starts[before] - 1
+        modifier = before >= 0 and (isinstance(tokens[before], javalang.tokenizer.Modifier)
+                                    or tokens[before].value == 'sealed')
+        if modifier:
+            after_modifier.add(token.position)
+    return args, after_modifier
 
 
 def _parse_enum_constant(sig: str) -> Any:
