@@ -17,6 +17,7 @@
 
 import re
 from collections.abc import Callable, Iterator, Set
+from itertools import accumulate
 from typing import Any, ClassVar, cast
 
 from docutils import nodes
@@ -66,6 +67,9 @@ java_dot_lang = {'AbstractMethodError', 'Appendable', 'ArithmeticException', 'Ar
                  'UnknownError', 'UnsatisfiedLinkError', 'UnsupportedClassVersionError',
                  'UnsupportedOperationException', 'VerifyError', 'VirtualMachineError', 'Void'}
 
+
+# The change in bracket depth at each bracket token
+BRACKET_DEPTHS = {'(': 1, '[': 1, '{': 1, ')': -1, ']': -1, '}': -1}
 
 PRIMITIVE_TYPES = frozenset({'boolean', 'byte', 'char', 'short', 'int', 'long', 'float', 'double', 'void'})
 
@@ -409,8 +413,8 @@ class JavaField(JavaObject):
         dim = '[]' * len(declarator.dimensions)
         signode += nodes.Text(dim)
 
-        if declarator.initializer and isinstance(declarator.initializer, javalang.tree.Literal):
-            signode += nodes.Text(' = ' + declarator.initializer.value)
+        if declarator.initializer:
+            signode += nodes.Text(' = ' + _initializer(sig))
 
         name: str = declarator.name
         return name
@@ -461,6 +465,15 @@ class JavaImport(SphinxDirective):
         package, typename = self.arguments
         self.env.ref_context.setdefault('java:imports', {})[typename] = package
         return []
+
+
+def _initializer(sig: str) -> str:
+    """ The initializer of a field signature as written, such as 1 << 3 """
+    tokens = list(javalang.tokenizer.tokenize(sig))
+    depths = accumulate(BRACKET_DEPTHS.get(token.value, 0) for token in tokens)
+    equals = next(token for token, depth in zip(tokens, depths, strict=True) if token.value == '=' and not depth)
+    # Columns start at 1, and a signature is one line
+    return sig[equals.position.column:].strip().removesuffix(';').rstrip()
 
 
 def _reference_type(name: str) -> Any:

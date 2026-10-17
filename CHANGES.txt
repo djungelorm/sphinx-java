@@ -22,6 +22,7 @@ v1.0.0
  * Link to the Java SE 25 docs, and choose the version with javadoc_java_se_version
  * Fix the javadoc8 anchors of methods with several parameters or array parameters
  * Show the default modifier of an interface method
+ * Show the initializer of a field as written, such as -1 or Integer.MAX_VALUE
  * Ship type hints (py.typed)
 
 javasphinx v0.9.16

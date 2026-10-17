@@ -413,3 +413,18 @@ def test_constructor_type_parameter_bounds(build):
     assert {ref.astext(): ref['refuri'] for ref in node.findall(lambda n: 'refuri' in n)} == {
         'Number': API + 'java/lang/Number.html',
     }
+
+
+@pytest.mark.parametrize('sig, text', [
+    ('int A = -1', 'int A = -1'),
+    ('int A = 1 << 3', 'int A = 1 << 3'),
+    ('int A = Integer.MAX_VALUE', 'int A = Integer.MAX_VALUE'),
+    ('List<String> A = new ArrayList<>()', 'List<String> A = new ArrayList<>()'),
+    ('String A = "a = b";', 'String A = "a = b"'),
+    ('int[] A = {1, 2}', 'int[] A = {1, 2}'),
+    ('@Size(max = 1) int A = 2', 'int A = 2'),
+])
+def test_field_initializer(build, sig, text):
+    app = build(f'.. java:field:: {sig}\n   :outertype: Foo\n', nitpicky=False)
+    assert warnings(app) == []
+    assert signatures(app)['Foo.A'] == text
