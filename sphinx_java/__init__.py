@@ -14,12 +14,24 @@
 # limitations under the License.
 #
 
+from importlib.metadata import version
+from typing import Any
+
+from sphinx.application import Sphinx
+
 from .domain import JavaDomain
 from .extdoc import javadoc_role
 
 
-def setup(app):
+def setup(app: Sphinx) -> dict[str, Any]:
     app.add_domain(JavaDomain)
 
-    app.add_config_value('javadoc_url_map', dict(), '')
+    app.add_config_value('javadoc_url_map', {}, 'env', types=(dict,))
     app.add_role('java:extdoc', javadoc_role)
+
+    return {
+        'version': version('sphinx-java'),
+        'env_version': 1,
+        'parallel_read_safe': True,
+        'parallel_write_safe': True,
+    }

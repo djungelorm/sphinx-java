@@ -14,29 +14,29 @@
 # limitations under the License.
 #
 
-"""
-Convert Java syntax tree nodes to string representations.
+""" Convert Java syntax tree nodes to strings """
 
-"""
+from collections.abc import Callable, Sequence
+from typing import Any, Concatenate
 
 from . import _javalang as javalang
 
+# The order for displaying modifiers
+MODIFIERS_ORDER = ('public', 'protected', 'private', 'static', 'abstract', 'final',
+                   'native', 'synchronized', 'transient', 'volatile', 'strictfp')
 
 
-class StringBuilder(list):
-    def build(self):
+class StringBuilder(list[str]):
+    def build(self) -> str:
         return str(self)
 
-    def __str__(self):
+    def __str__(self) -> str:
         return ''.join(self)
 
-# The order for displaying modifiers
-__modifiers_order = ('public', 'protected', 'private', 'static', 'abstract', 'final',
-                     'native', 'synchronized', 'transient', 'volatile', 'strictfp')
 
-
-def formatter(f):
-    def _f(node, output=None, **kwargs):
+def formatter(f: Callable[Concatenate[Any, StringBuilder, ...], None]) -> Callable[..., StringBuilder]:
+    """ Make the output argument optional, and return the output """
+    def _f(node: Any, output: StringBuilder | None = None, **kwargs: Any) -> StringBuilder:
         if output is None:
             output = StringBuilder()
 
@@ -46,7 +46,8 @@ def formatter(f):
     return _f
 
 
-def output_list(f, items, output=None, sep=', '):
+def output_list(f: Callable[[Any, StringBuilder], object], items: Sequence[Any], output: StringBuilder,
+                sep: str = ', ') -> None:
     if items:
         f(items[0], output)
         for item in items[1:]:
@@ -55,46 +56,38 @@ def output_list(f, items, output=None, sep=', '):
 
 
 @formatter
-def output_annotation(annotation, output):
+def output_annotation(annotation: Any, output: StringBuilder) -> None:
     output.append('@')
     output.append(annotation.name)
     output.append(' ')
 
 
 @formatter
-def output_type(type, output, with_generics=True):
-    if not type:
+def output_type(typ: Any, output: StringBuilder, with_generics: bool = True) -> None:
+    if not typ:
         output.append('void')
         return
 
-    if type.dimensions:
-        dim = '[]' * len(type.dimensions)
-    else:
-        dim = ''
+    dim = '[]' * len(typ.dimensions) if typ.dimensions else ''
 
-    if isinstance(type, javalang.tree.BasicType):
-        output.append(type.name)
+    if isinstance(typ, javalang.tree.BasicType):
+        output.append(typ.name)
     else:
-        while type:
-            output.append(type.name)
+        while typ:
+            output.append(typ.name)
 
             if with_generics:
-                output_type_args(type.arguments, output)
+                output_type_args(typ.arguments, output)
 
-            type = type.sub_type
+            typ = typ.sub_type
 
-            if type:
+            if typ:
                 output.append('.')
     output.append(dim)
 
 
 @formatter
-def output_exception(exception, output):
-    output.append(exception)
-
-
-@formatter
-def output_type_arg(type_arg, output):
+def output_type_arg(type_arg: Any, output: StringBuilder) -> None:
     if type_arg.pattern_type == '?':
         output.append('?')
     else:
@@ -107,7 +100,7 @@ def output_type_arg(type_arg, output):
 
 
 @formatter
-def output_type_args(type_args, output):
+def output_type_args(type_args: Any, output: StringBuilder) -> None:
     if type_args:
         output.append('<')
         output_list(output_type_arg, type_args, output, ', ')
@@ -115,7 +108,7 @@ def output_type_args(type_args, output):
 
 
 @formatter
-def output_type_param(type_param, output):
+def output_type_param(type_param: Any, output: StringBuilder) -> None:
     output.append(type_param.name)
 
     if type_param.extends:
@@ -124,7 +117,7 @@ def output_type_param(type_param, output):
 
 
 @formatter
-def output_type_params(type_params, output):
+def output_type_params(type_params: Any, output: StringBuilder) -> None:
     if type_params:
         output.append('<')
         output_list(output_type_param, type_params, output, ', ')
@@ -132,53 +125,6 @@ def output_type_params(type_params, output):
 
 
 @formatter
-def output_declaration(declaration, output):
-    for annotation in declaration.annotations:
-        output_annotation(annotation, output)
-
-    output_modifiers(declaration.modifiers, output)
-    output.append(' ')
-
-    if isinstance(declaration, javalang.tree.ClassDeclaration):
-        output.append('class ')
-    elif isinstance(declaration, javalang.tree.EnumDeclaration):
-        output.append('enum ')
-    elif isinstance(declaration, javalang.tree.InterfaceDeclaration):
-        output.append('interface ')
-    elif isinstance(declaration, javalang.tree.AnnotationDeclaration):
-        output.append('@interface ')
-
-    output.append(declaration.name)
-
-    if isinstance(declaration, (javalang.tree.ClassDeclaration, javalang.tree.InterfaceDeclaration)):
-        output_type_params(declaration.type_parameters, output)
-
-    if isinstance(declaration, javalang.tree.ClassDeclaration) and declaration.extends:
-        output.append(' extends ')
-        output_type(declaration.extends, output)
-
-    if isinstance(declaration, javalang.tree.InterfaceDeclaration) and declaration.extends:
-        output.append(' extends ')
-        output_list(output_type, declaration.extends, output, ', ')
-
-    if isinstance(declaration,
-                  (javalang.tree.ClassDeclaration, javalang.tree.EnumDeclaration)) and declaration.implements:
-        output.append(' implements ')
-        output_list(output_type, declaration.implements, output, ', ')
-
-
-@formatter
-def output_formal_param(param, output):
-    output_type(param.type, output)
-
-    if param.varargs:
-        output.append('...')
-
-    output.append(' ')
-    output.append(param.name)
-
-
-@formatter
-def output_modifiers(modifiers, output):
-    ordered_modifiers = [mod for mod in __modifiers_order if mod in modifiers]
+def output_modifiers(modifiers: Any, output: StringBuilder) -> None:
+    ordered_modifiers = [mod for mod in MODIFIERS_ORDER if mod in modifiers]
     output_list(lambda mod, output: output.append(mod), ordered_modifiers, output, ' ')
