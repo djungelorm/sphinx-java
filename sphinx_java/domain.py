@@ -404,6 +404,10 @@ class JavaType(JavaObject):
                 signode += nodes.Text(' implements ')
                 signode += self._build_type_node_list(member.implements)
 
+        if self.declaration_type in ('class', 'interface') and member.permits:
+            signode += nodes.Text(' permits ')
+            signode += self._build_type_node_list(member.permits)
+
         name: str = member.name
         return name
 

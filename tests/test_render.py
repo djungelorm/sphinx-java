@@ -542,3 +542,25 @@ def test_record_members(build):
     assert references(app) == {'Range.Range': 'com.example.Range.Range', 'Range(T)': 'com.example.Range.Range(T)'}
     entries = [entry[1] for node in resolved_doctree(app).findall(addnodes.index) for entry in node['entries']]
     assert 'Range (Java record)' in entries
+
+
+@pytest.mark.parametrize('sig, text', [
+    ('public sealed class Shape permits Circle, Square', None),
+    ('public abstract sealed class Shape extends Base implements Drawable permits Circle', None),
+    ('public sealed interface Shape extends Drawable permits Circle, Square', None),
+    ('public non-sealed class Square extends Shape', None),
+    ('sealed public class Shape permits Circle', 'public sealed class Shape permits Circle'),
+    ('@Deprecated sealed class Shape permits Circle', None),
+    ('public final class sealed', None),
+])
+def test_sealed_types(build, sig, text):
+    app = build(f'.. java:type:: {sig}\n', nitpicky=False)
+    assert warnings(app) == []
+    assert list(signatures(app).values()) == [text or sig]
+
+
+def test_sealed_member_names(build):
+    app = build('.. java:method:: boolean sealed(int non)\n   :outertype: Foo\n\n'
+                '.. java:field:: int sealed\n   :outertype: Foo\n')
+    assert warnings(app) == []
+    assert signatures(app) == {'Foo.sealed(int)': 'boolean sealed(int non)', 'Foo.sealed': 'int sealed'}

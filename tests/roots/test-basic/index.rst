@@ -7,7 +7,7 @@ Java Examples
 
 .. java:import:: org.javatuples Pair
 
-.. java:type:: public interface Shape extends Comparable<Shape>
+.. java:type:: public sealed interface Shape extends Comparable<Shape> permits Polygon
 
    A shape with an area.
 
@@ -15,7 +15,7 @@ Java Examples
 
       :return: The area, in square meters.
 
-.. java:type:: public abstract class Polygon<P extends Point> implements Shape
+.. java:type:: public abstract non-sealed class Polygon<P extends Point> implements Shape
 
    A shape with straight sides.
 

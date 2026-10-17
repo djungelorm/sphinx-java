@@ -33,8 +33,9 @@ class TypeDeclaration(Declaration, Documented):
 class PackageDeclaration(Declaration, Documented):
     attrs = ("name",)
 
+# sphinx-java: sealed classes
 class ClassDeclaration(TypeDeclaration):
-    attrs = ("type_parameters", "extends", "implements")
+    attrs = ("type_parameters", "extends", "implements", "permits")
 
 class EnumDeclaration(TypeDeclaration):
     attrs = ("implements",)
@@ -47,8 +48,9 @@ class EnumDeclaration(TypeDeclaration):
     def methods(self):
         return [decl for decl in self.body.declarations if isinstance(decl, MethodDeclaration)]
 
+# sphinx-java: sealed classes
 class InterfaceDeclaration(TypeDeclaration):
-    attrs = ("type_parameters", "extends",)
+    attrs = ("type_parameters", "extends", "permits")
 
 # sphinx-java: records
 class RecordDeclaration(TypeDeclaration):

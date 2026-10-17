@@ -392,12 +392,18 @@ class Parser(object):
         if self.try_accept('implements'):
             implements = self.parse_type_list()
 
+        # sphinx-java: sealed classes
+        permits = None
+        if self.try_accept('permits'):
+            permits = self.parse_type_list()
+
         body = self.parse_class_body()
 
         return tree.ClassDeclaration(name=name,
                                      type_parameters=type_params,
                                      extends=extends,
                                      implements=implements,
+                                     permits=permits,
                                      body=body)
 
     @parse_debug
@@ -434,11 +440,17 @@ class Parser(object):
         if self.try_accept('extends'):
             extends = self.parse_type_list()
 
+        # sphinx-java: sealed classes
+        permits = None
+        if self.try_accept('permits'):
+            permits = self.parse_type_list()
+
         body = self.parse_interface_body()
 
         return tree.InterfaceDeclaration(name=name,
                                          type_parameters=type_parameters,
                                          extends=extends,
+                                         permits=permits,
                                          body=body)
 
     @parse_debug
@@ -670,6 +682,15 @@ class Parser(object):
                 annotation = self.parse_annotation()
                 annotation._position = token.position
                 annotations.append(annotation)
+
+            # sphinx-java: sealed classes, where sealed is a modifier only before a keyword or an annotation
+            elif self.would_accept('sealed') and isinstance(self.tokens.look(1), (Keyword, Annotation)):
+                self.accept('sealed')
+                modifiers.add('sealed')
+
+            elif self.would_accept('non', '-', 'sealed'):
+                self.accept('non', '-', 'sealed')
+                modifiers.add('non-sealed')
 
             else:
                 break
