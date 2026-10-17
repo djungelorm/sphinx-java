@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 
+import re
 from collections.abc import Iterator, Set
 from typing import Any, ClassVar, cast
 
@@ -482,14 +483,18 @@ def _note_context(env: BuildEnvironment, refnode: Element, target: str) -> None:
 
 
 class JavaXRefRole(XRefRole):
+    # An explicit title needs a space before the target, so that a generic type is a target
+    explicit_title_re = re.compile(r'^(.+?)\s+(?<!\x00)<(.*?)>$', re.DOTALL)
+
     def process_link(self, env: BuildEnvironment, refnode: Element, has_explicit_title: bool, title: str,
                      target: str) -> tuple[str, str]:
-        target = target.lstrip('~')
+        # The type without its type arguments, such as java.util.List for java.util.List<String>
+        target = re.sub(r'<.*>', '', target.lstrip('~'))
         _note_context(env, refnode, target)
 
         # A leading tilde shows only the last component of the name
         if not has_explicit_title and title[0:1] == '~':
-            title = title.partition('(')[0]
+            title = re.sub(r'<.*>', '', title.partition('(')[0])
             title = title[1:]
             dot = title.rfind('.')
             if dot != -1:

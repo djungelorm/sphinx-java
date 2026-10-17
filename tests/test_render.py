@@ -1,5 +1,6 @@
 import pytest
 from conftest import references, resolved_doctree, signatures, warnings
+from docutils import nodes
 from sphinx import addnodes
 
 SOURCE = '''
@@ -311,3 +312,31 @@ def test_rebuild_after_removing_a_page(build, make_app):
     app.build()
     assert 'com.example.Box' not in app.env.get_domain('java').objects
     assert any('reference target not found: com.example.Box' in line for line in warnings(app))
+
+
+def test_generic_types_in_fields(build):
+    app = build('''
+.. java:method:: void move(org.javatuples.Triplet<Double, Double, Double> position, java.util.List<String> names)
+   :outertype: Foo
+
+   :param org.javatuples.Triplet<Double,Double,Double> position: The position.
+   :param java.util.List<String> names: The names.
+''', javadoc_url_map={'org.javatuples': ('https://www.javatuples.org/apidocs/', 'javadoc')})
+    assert warnings(app) == []
+    fields = next(resolved_doctree(app).findall(nodes.field_list))
+    assert {ref.astext(): ref['refuri'] for ref in fields.findall(nodes.reference)} == {
+        'org.javatuples.Triplet<Double,Double,Double>': 'https://www.javatuples.org/apidocs/org/javatuples/Triplet.html',
+        'java.util.List<String>': 'https://docs.oracle.com/javase/8/docs/api/java/util/List.html',
+    }
+
+
+@pytest.mark.parametrize('rst, text, target', [
+    (':java:type:`List<String>`', 'List<String>', 'https://docs.oracle.com/javase/8/docs/api/java/util/List.html'),
+    (':java:type:`~java.util.List<String>`', 'List', 'https://docs.oracle.com/javase/8/docs/api/java/util/List.html'),
+    (':java:type:`the list <java.util.List>`', 'the list',
+     'https://docs.oracle.com/javase/8/docs/api/java/util/List.html'),
+])
+def test_generic_type_reference(build, rst, text, target):
+    app = build('.. java:import:: java.util List\n\n' + rst)
+    assert warnings(app) == []
+    assert references(app) == {text: target}
