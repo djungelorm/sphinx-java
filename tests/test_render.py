@@ -91,6 +91,18 @@ def test_type_parameters(build):
     assert signatures(app)['Box.convert(U, List)'] == 'public <U> T convert(U value, List<T> items)'
 
 
+def test_primitive_types_in_fields(build):
+    app = build('''
+.. java:method:: long get(int a, byte[] b, double... c)
+   :outertype: Foo
+
+   :param int a: A.
+   :param byte[] b: B.
+   :param double... c: C.
+''')
+    assert warnings(app) == []
+
+
 def test_references(app):
     refs = references(app)
     assert refs['Box'] == 'com.example.Box'

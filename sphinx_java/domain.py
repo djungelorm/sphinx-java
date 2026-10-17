@@ -65,6 +65,9 @@ java_dot_lang = {'AbstractMethodError', 'Appendable', 'ArithmeticException', 'Ar
                  'UnsupportedOperationException', 'VerifyError', 'VirtualMachineError', 'Void'}
 
 
+PRIMITIVE_TYPES = frozenset({'boolean', 'byte', 'char', 'short', 'int', 'long', 'float', 'double', 'void'})
+
+
 class JavaObject(ObjectDescription[str]):
     # The type parameters that the signature declares
     own_type_params: frozenset[str] = frozenset()
@@ -458,8 +461,9 @@ def _note_context(env: BuildEnvironment, refnode: Element, target: str) -> None:
         refnode['java:imported'] = False
         refnode['java:package'] = env.ref_context.get('java:package')
 
-    # A type parameter, which has no target
-    if target.removesuffix('...').rstrip('[]') in _type_params_in_scope(env):
+    # A primitive type or a type parameter, which has no target
+    base = target.removesuffix('...').rstrip('[]')
+    if base in PRIMITIVE_TYPES or base in _type_params_in_scope(env):
         refnode['java:plain'] = True
 
 
