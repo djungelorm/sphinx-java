@@ -89,6 +89,7 @@ def test_type_parameters(build):
         f'{app.srcdir / "index.rst"}:11: WARNING: java:type reference target not found: T',
     ]
     assert signatures(app)['Box.convert(U, List)'] == 'public <U> T convert(U value, List<T> items)'
+    assert signatures(app)['Box.Box(V)'] == 'public <V> Box(V value)'
 
 
 def test_primitive_types_in_fields(build):
@@ -398,3 +399,13 @@ def test_type_parameter_bounds(build):
     refs = [(ref.astext(), ref.get('refid') or ref.get('refuri'))
             for ref in node.findall(lambda n: 'refuri' in n or 'refid' in n)]
     assert refs == [('Base', 'Base'), ('Comparable', API + 'java/lang/Comparable.html')]
+
+
+def test_constructor_type_parameter_bounds(build):
+    app = build('.. java:constructor:: public <N extends Number> Box(N value)\n   :outertype: Box\n')
+    assert warnings(app) == []
+    assert signatures(app)['Box.Box(N)'] == 'public <N extends Number> Box(N value)'
+    node = next(resolved_doctree(app).findall(addnodes.desc_signature))
+    assert {ref.astext(): ref['refuri'] for ref in node.findall(lambda n: 'refuri' in n)} == {
+        'Number': API + 'java/lang/Number.html',
+    }

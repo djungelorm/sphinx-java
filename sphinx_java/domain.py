@@ -318,6 +318,10 @@ class JavaConstructor(JavaObject):
 
         self._add_modifiers(signode, member.modifiers)
 
+        if member.type_parameters:
+            signode += self._build_type_params(member.type_parameters)
+            signode += nodes.Text(' ')
+
         signode += addnodes.desc_name(member.name, member.name)
         signode += self._build_parameter_list(member.parameters)
         self._add_throws(signode, member.throws)
