@@ -22,6 +22,7 @@ from docutils.nodes import Element, Node
 from docutils.parsers.rst import directives
 from sphinx import addnodes
 from sphinx.addnodes import desc_signature, pending_xref
+from sphinx.application import Sphinx
 from sphinx.builders import Builder
 from sphinx.config import Config
 from sphinx.directives import ObjectDescription
@@ -65,6 +66,9 @@ java_dot_lang = {'AbstractMethodError', 'Appendable', 'ArithmeticException', 'Ar
 
 
 class JavaObject(ObjectDescription[str]):
+    # The type parameters that the signature declares
+    own_type_params: frozenset[str] = frozenset()
+
     option_spec: ClassVar[OptionSpec] = {
         **ObjectDescription.option_spec,
         'package': directives.unchanged,
@@ -90,12 +94,19 @@ class JavaObject(ObjectDescription[str]):
 
         return ref
 
+    def _type_params(self) -> set[str]:
+        """ The names of the type parameters in scope """
+        return _type_params_in_scope(self.env) | self.own_type_params
+
     def _build_type_node(self, typ: Any) -> list[Node]:
         if not isinstance(typ, javalang.tree.ReferenceType):
             type_repr = formatter.output_type(typ).build()
             return [nodes.Text(type_repr)]
 
         dim = '[]' * len(typ.dimensions) if typ.dimensions else ''
+        if not typ.sub_type and not typ.arguments and typ.name in self._type_params():
+            return [nodes.Text(typ.name + dim)]
+
         target = typ.name
         parts: list[Node] = []
 
@@ -201,10 +212,12 @@ class JavaObject(ObjectDescription[str]):
         if self.objtype == 'type' and self.names:
             self.set_type = True
             self.env.ref_context.setdefault('java:outertype', []).append(self.names[0])
+        self.env.ref_context.setdefault('java:typeparams', []).append(self.own_type_params)
 
     def after_content(self) -> None:
         if self.set_type:
             self.env.ref_context['java:outertype'].pop()
+        self.env.ref_context['java:typeparams'].pop()
 
 
 class JavaMethod(JavaObject):
@@ -226,6 +239,7 @@ class JavaMethod(JavaObject):
         if not isinstance(member, javalang.tree.MethodDeclaration):
             raise self.error('expected method declaration')
 
+        self.own_type_params = _type_param_names(member)
         self._add_modifiers(signode, member.modifiers)
 
         if member.type_parameters:
@@ -263,6 +277,7 @@ class JavaConstructor(JavaObject):
 
         if not isinstance(member, javalang.tree.ConstructorDeclaration):
             raise self.error('expected constructor declaration')
+        self.own_type_params = _type_param_names(member)
 
         self._add_modifiers(signode, member.modifiers)
 
@@ -297,6 +312,7 @@ class JavaType(JavaObject):
         self.declaration_type = declaration_types.get(type(member))
         if self.declaration_type is None:
             raise self.error('expected type declaration')
+        self.own_type_params = _type_param_names(member)
 
         self._add_modifiers(signode, member.modifiers)
 
@@ -413,28 +429,45 @@ class JavaImport(SphinxDirective):
         return []
 
 
+def _type_param_names(member: Any) -> frozenset[str]:
+    return frozenset(param.name for param in getattr(member, 'type_parameters', None) or [])
+
+
+def _type_params_in_scope(env: BuildEnvironment) -> set[str]:
+    """ The type parameters of the enclosing types and members """
+    return {name for names in env.ref_context.get('java:typeparams', []) for name in names}
+
+
+def _note_context(env: BuildEnvironment, refnode: Element, target: str) -> None:
+    """ Store the current type and package on a reference, for resolving it, or mark it as plain text """
+    refnode['java:outertype'] = '.'.join(env.ref_context.get('java:outertype', []))
+
+    # Strip a method component from the target
+    basetype = target
+    if '(' in basetype:
+        basetype = basetype.partition('(')[0]
+        if '.' in basetype:
+            basetype = basetype.rpartition('.')[0]
+
+    package = env.ref_context.get('java:imports', {}).get(basetype, None)
+
+    if package:
+        refnode['java:imported'] = True
+        refnode['java:package'] = package
+    else:
+        refnode['java:imported'] = False
+        refnode['java:package'] = env.ref_context.get('java:package')
+
+    # A type parameter, which has no target
+    if target.removesuffix('...').rstrip('[]') in _type_params_in_scope(env):
+        refnode['java:plain'] = True
+
+
 class JavaXRefRole(XRefRole):
     def process_link(self, env: BuildEnvironment, refnode: Element, has_explicit_title: bool, title: str,
                      target: str) -> tuple[str, str]:
-        refnode['java:outertype'] = '.'.join(env.ref_context.get('java:outertype', []))
-
         target = target.lstrip('~')
-
-        # Strip a method component from the target
-        basetype = target
-        if '(' in basetype:
-            basetype = basetype.partition('(')[0]
-            if '.' in basetype:
-                basetype = basetype.rpartition('.')[0]
-
-        package = env.ref_context.get('java:imports', {}).get(basetype, None)
-
-        if package:
-            refnode['java:imported'] = True
-            refnode['java:package'] = package
-        else:
-            refnode['java:imported'] = False
-            refnode['java:package'] = env.ref_context.get('java:package')
+        _note_context(env, refnode, target)
 
         # A leading tilde shows only the last component of the name
         if not has_explicit_title and title[0:1] == '~':
@@ -509,6 +542,9 @@ class JavaDomain(Domain):
             else:
                 self.objects[fullname] = data
 
+    def process_field_xref(self, pnode: pending_xref) -> None:
+        _note_context(self.env, pnode, pnode['reftarget'])
+
     def find_object(self, target: str, node: pending_xref) -> str | None:
         """ The full name of the object that a reference points to """
         objects = self.objects
@@ -550,6 +586,8 @@ class JavaDomain(Domain):
 
     def resolve_xref(self, env: BuildEnvironment, fromdocname: str, builder: Builder, typ: str, target: str,
                      node: pending_xref, contnode: Element) -> nodes.reference | None:
+        if node.get('java:plain'):
+            return None
         fullname = self.find_object(target, node)
         if fullname:
             docname, objtype, _basename = self.objects[fullname]
@@ -572,6 +610,11 @@ class JavaDomain(Domain):
     def get_objects(self) -> Iterator[tuple[str, str, str, str, str, int]]:
         for refname, (docname, objtype, _basename) in self.objects.items():
             yield refname, refname, objtype, docname, _anchor(refname, objtype), 1
+
+
+def suppress_missing_reference(app: Sphinx, domain: Domain, node: pending_xref) -> bool:
+    """ Whether to leave out the warning for a reference that is plain text by design """
+    return bool(node.get('java:plain'))
 
 
 def _anchor(fullname: str, objtype: str) -> str:

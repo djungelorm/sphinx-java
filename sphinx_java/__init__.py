@@ -19,7 +19,7 @@ from typing import Any
 
 from sphinx.application import Sphinx
 
-from .domain import JavaDomain
+from .domain import JavaDomain, suppress_missing_reference
 from .extdoc import javadoc_role
 
 
@@ -28,6 +28,7 @@ def setup(app: Sphinx) -> dict[str, Any]:
 
     app.add_config_value('javadoc_url_map', {}, 'env', types=(dict,))
     app.add_role('java:extdoc', javadoc_role)
+    app.connect('warn-missing-reference', suppress_missing_reference)
 
     return {
         'version': version('sphinx-java'),

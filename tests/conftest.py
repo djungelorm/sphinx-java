@@ -3,6 +3,7 @@ from pathlib import Path
 import pytest
 from docutils import nodes
 from sphinx import addnodes, version_info
+from sphinx.util.console import strip_colors
 
 pytest_plugins = ['sphinx.testing.fixtures']
 
@@ -35,7 +36,7 @@ def resolved_doctree(app, docname='index'):
 
 # Note: SphinxTestApp.warning was added in Sphinx 7.3.
 def warnings(app):
-    return [line for line in app._warning.getvalue().splitlines() if line.strip()]
+    return [strip_colors(line) for line in app._warning.getvalue().splitlines() if line.strip()]
 
 
 def signatures(app):

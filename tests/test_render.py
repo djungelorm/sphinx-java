@@ -69,6 +69,28 @@ def test_signature_without_modifiers(app, node_id, text):
     assert signatures(app)[node_id] == text
 
 
+def test_type_parameters(build):
+    app = build('''
+.. java:type:: public class Box<T> extends Base<T>
+
+   .. java:method:: public <U> T convert(U value, List<T> items)
+
+      :param U value: The value.
+      :param T[] items: The items.
+
+   .. java:constructor:: public <V> Box(V value)
+
+.. java:method:: T outside()
+   :outertype: Other
+''')
+    assert [line for line in warnings(app) if 'not found' in line] == [
+        f'{app.srcdir / "index.rst"}:2: WARNING: java:type reference target not found: Base [ref.type]',
+        f'{app.srcdir / "index.rst"}:4: WARNING: java:type reference target not found: List [ref.type]',
+        f'{app.srcdir / "index.rst"}:11: WARNING: java:type reference target not found: T [ref.type]',
+    ]
+    assert signatures(app)['Box.convert(U, List)'] == 'public <U> T convert(U value, List<T> items)'
+
+
 def test_references(app):
     refs = references(app)
     assert refs['Box'] == 'com.example.Box'
