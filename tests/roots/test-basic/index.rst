@@ -25,7 +25,7 @@ Java Examples
 
    .. java:field:: protected List<P> vertices
 
-   .. java:constructor:: public Polygon(List<P> vertices)
+   .. java:constructor:: public Polygon(List<P> vertices) throws IllegalArgumentException
 
       :param vertices: The vertices, in order.
       :throws IllegalArgumentException: If there are more than :java:field:`MAX_SIDES` vertices.

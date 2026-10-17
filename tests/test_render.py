@@ -340,3 +340,28 @@ def test_generic_type_reference(build, rst, text, target):
     app = build('.. java:import:: java.util List\n\n' + rst)
     assert warnings(app) == []
     assert references(app) == {text: target}
+
+
+
+API = 'https://docs.oracle.com/javase/8/docs/api/'
+
+
+@pytest.mark.parametrize('directive, sig, node_id, text, refs', [
+    ('method', 'void read() throws IOException', 'Foo.read()', 'void read() throws IOException',
+     {'IOException': API + 'java/io/IOException.html'}),
+    ('method', 'void read() throws java.io.IOException, Error', 'Foo.read()',
+     'void read() throws java.io.IOException, Error',
+     {'java.io': API + 'java/io/package-summary.html', 'IOException': API + 'java/io/IOException.html',
+      'Error': API + 'java/lang/Error.html'}),
+    ('method', '<E extends Exception> void run() throws E', 'Foo.run()', '<E extends Exception> void run() throws E',
+     {}),
+    ('constructor', 'public Foo(String path) throws IOException', 'Foo.Foo(String)',
+     'public Foo(String path) throws IOException',
+     {'String': API + 'java/lang/String.html', 'IOException': API + 'java/io/IOException.html'}),
+])
+def test_throws(build, directive, sig, node_id, text, refs):
+    app = build(f'.. java:import:: java.io IOException\n\n.. java:{directive}:: {sig}\n   :outertype: Foo\n')
+    assert warnings(app) == []
+    assert signatures(app)[node_id] == text
+    node = next(resolved_doctree(app).findall(addnodes.desc_signature))
+    assert {ref.astext(): ref['refuri'] for ref in node.findall(lambda n: 'refuri' in n)} == refs

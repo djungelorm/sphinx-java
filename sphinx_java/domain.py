@@ -183,6 +183,11 @@ class JavaObject(ObjectDescription[str]):
             paramlist += param
         return paramlist
 
+    def _add_throws(self, signode: desc_signature, throws: list[str] | None) -> None:
+        if throws:
+            signode += nodes.Text(' throws ')
+            signode += self._build_type_node_list([_reference_type(name) for name in throws])
+
     @staticmethod
     def _add_modifiers(signode: desc_signature, modifiers: set[str]) -> None:
         mods = formatter.output_modifiers(modifiers).build()
@@ -274,6 +279,7 @@ class JavaMethod(JavaObject):
         signode += nodes.Text(' ')
         signode += addnodes.desc_name(member.name, member.name)
         signode += self._build_parameter_list(member.parameters)
+        self._add_throws(signode, member.throws)
 
         return self._overload_name(member)
 
@@ -303,6 +309,7 @@ class JavaConstructor(JavaObject):
 
         signode += addnodes.desc_name(member.name, member.name)
         signode += self._build_parameter_list(member.parameters)
+        self._add_throws(signode, member.throws)
 
         return self._overload_name(member)
 
@@ -445,6 +452,14 @@ class JavaImport(SphinxDirective):
         package, typename = self.arguments
         self.env.ref_context.setdefault('java:imports', {})[typename] = package
         return []
+
+
+def _reference_type(name: str) -> Any:
+    """ The syntax tree node for a qualified type name, such as java.io.IOException """
+    typ = None
+    for part in reversed(name.split('.')):
+        typ = javalang.tree.ReferenceType(name=part, sub_type=typ)
+    return typ
 
 
 def _type_param_names(member: Any) -> frozenset[str]:
