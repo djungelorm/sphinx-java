@@ -9,9 +9,7 @@ Introduction
 ============
 
 javasphinx is a Sphinx_ extension that provides a Sphinx domain_ for documenting
-Java projects and a ``javasphinx-apidoc`` command line tool for automatically
-generating API documentation from existing Java source code and Javadoc
-documentation.
+Java projects.
 
 .. _Sphinx: http://sphinx-doc.org
 .. _domain: http://sphinx-doc.org/domains.html
@@ -177,43 +175,3 @@ The following roles are provided,
    The ``java:ref`` role will also create external references as a fall-back if
    it can't find a matching local declaration so using this role is not strictly
    necessary.
-
-javasphinx-apidoc
-=================
-
-The ``javasphinx-apidoc`` tool is the counterpoint to the ``sphinx-apidoc`` tool
-within the Java domain. It can be used to generate reST source from existing
-Java source code which has been marked up with Javadoc-style comments. The
-generated reST is then processed alongside hand-written documentation by Sphinx.
-
-At minimum a source and destination directory must be provided. The input
-directory will be scanned for .java files and documentation will be generated
-for all non-private types and members. A separate output file will be generated
-for each type (including inner classes). Each file is put within a directory
-corresponding to its package (with periods replaced by directory separators) and
-with the basename of the file deriving from the type name. Inner types are
-placed in files with a basename using a hyphen to separate inner and outer
-types, e.g. ``OuterType-InnerType.rst``.
-
-By default ``javasphinx-apidoc`` will not override existing files. Two options
-can change this behavior,
-
-.. option:: -f, --force
-
-   All existing output files will be rewritten. If a cache directory is
-   specified it will be rebuilt.
-
-.. option:: -u, --update
-
-   Updated source files will have their corresponding output files
-   updated. Unchanged files will be left alone. Most projects will want to use
-   this option.
-
-For larger projects it is recommended to use a cache directory. This can speed
-up subsequent runs by an order of magnitude or more. Specify a directory to
-store cached output using the :option:`-c` option,
-
-.. option:: -c, --cache-dir
-
-   Specify a directory to cache intermediate documentation representations. This
-   directory will be created if it does not already exist.

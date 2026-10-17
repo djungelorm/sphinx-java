@@ -35,18 +35,9 @@ setup(
         ],
     install_requires=[
         "javalang>=0.10.1",
-        "lxml",
-        "beautifulsoup4",
-        "future",
         "docutils",
-        "sphinx",
-        "six"
+        "sphinx"
     ],
-    entry_points={
-        'console_scripts': [
-            'javasphinx-apidoc = javasphinx.apidoc:main'
-            ]
-        },
     long_description = """\
 ==========
 javasphinx
@@ -54,7 +45,6 @@ javasphinx
 
 javasphinx is an extension to the Sphinx documentation system which adds support
 for documenting Java projects. It includes a Java domain for writing
-documentation manually and a javasphinx-apidoc utility which will automatically
-generate API documentation from existing Javadoc markup.
+documentation manually.
 """
 )

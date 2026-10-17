@@ -21,7 +21,14 @@ Convert Java syntax tree nodes to string representations.
 
 import javalang
 
-from .util import StringBuilder
+
+
+class StringBuilder(list):
+    def build(self):
+        return str(self)
+
+    def __str__(self):
+        return ''.join(self)
 
 # The order for displaying modifiers
 __modifiers_order = ('public', 'protected', 'private', 'static', 'abstract', 'final',
