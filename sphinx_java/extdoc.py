@@ -25,7 +25,7 @@ from sphinx.config import Config
 from sphinx.util.nodes import split_explicit_title
 
 # The Java SE packages, which link to the Java SE docs unless javadoc_url_map has them
-JAVA_SE_DOCS = ('http://docs.oracle.com/javase/8/docs/api', 'javadoc8')
+JAVA_SE_DOCS = ('https://docs.oracle.com/javase/8/docs/api', 'javadoc8')
 JAVA_SE_PACKAGES = ('java', 'javax', 'org.xml', 'org.w3c')
 
 

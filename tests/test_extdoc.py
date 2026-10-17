@@ -13,11 +13,11 @@ URL_MAP = {
 
 
 @pytest.mark.parametrize('target, url', [
-    ('java.util.List', 'http://docs.oracle.com/javase/8/docs/api/java/util/List.html'),
-    ('java.util', 'http://docs.oracle.com/javase/8/docs/api/java/util/package-summary.html'),
-    ('java.util.Map.Entry', 'http://docs.oracle.com/javase/8/docs/api/java/util/Map.Entry.html'),
-    ('java.util.List.get(int)', 'http://docs.oracle.com/javase/8/docs/api/java/util/List.html#get-int-'),
-    ('javax.swing.JFrame', 'http://docs.oracle.com/javase/8/docs/api/javax/swing/JFrame.html'),
+    ('java.util.List', 'https://docs.oracle.com/javase/8/docs/api/java/util/List.html'),
+    ('java.util', 'https://docs.oracle.com/javase/8/docs/api/java/util/package-summary.html'),
+    ('java.util.Map.Entry', 'https://docs.oracle.com/javase/8/docs/api/java/util/Map.Entry.html'),
+    ('java.util.List.get(int)', 'https://docs.oracle.com/javase/8/docs/api/java/util/List.html#get-int-'),
+    ('javax.swing.JFrame', 'https://docs.oracle.com/javase/8/docs/api/javax/swing/JFrame.html'),
     ('org.example.Foo', 'https://example.org/api/org/example/Foo.html'),
     ('org.example.Foo.bar(int)', 'https://example.org/api/org/example/Foo.html#bar(int)'),
     ('org.example.sub.Foo.bar(int)', 'https://example.org/sub-api/org/example/sub/Foo.html#bar-int-'),
@@ -60,9 +60,9 @@ def test_role(build):
                 ':java:extdoc:`the list <java.util.List>`')
     assert warnings(app) == []
     assert references(app) == {
-        'java.util.List': 'http://docs.oracle.com/javase/8/docs/api/java/util/List.html',
-        'Map': 'http://docs.oracle.com/javase/8/docs/api/java/util/Map.html',
-        'the list': 'http://docs.oracle.com/javase/8/docs/api/java/util/List.html',
+        'java.util.List': 'https://docs.oracle.com/javase/8/docs/api/java/util/List.html',
+        'Map': 'https://docs.oracle.com/javase/8/docs/api/java/util/Map.html',
+        'the list': 'https://docs.oracle.com/javase/8/docs/api/java/util/List.html',
     }
 
 

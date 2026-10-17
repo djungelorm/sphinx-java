@@ -119,8 +119,8 @@ def test_qualified_names(build):
     refs = [(ref.astext(), ref.get('refid') or ref.get('refuri'))
             for ref in node.findall(lambda n: 'refuri' in n or 'refid' in n)]
     assert refs == [
-        ('java.util', 'http://docs.oracle.com/javase/8/docs/api/java/util/package-summary.html'),
-        ('List', 'http://docs.oracle.com/javase/8/docs/api/java/util/List.html'),
+        ('java.util', 'https://docs.oracle.com/javase/8/docs/api/java/util/package-summary.html'),
+        ('List', 'https://docs.oracle.com/javase/8/docs/api/java/util/List.html'),
         ('com.example', 'package-com.example'),
         ('Box', 'com.example.Box'),
     ]
@@ -132,8 +132,8 @@ def test_references(app):
     assert refs['Box.wrap'] == 'com.example.Box.wrap(U[], String)'
     assert refs['getName'] == 'com.example.Box.getName()'
     assert refs['Box.SIZE'] == 'com.example.Box.SIZE'
-    assert refs['String'] == 'http://docs.oracle.com/javase/8/docs/api/java/lang/String.html'
-    assert refs['java.util.List'] == 'http://docs.oracle.com/javase/8/docs/api/java/util/List.html'
+    assert refs['String'] == 'https://docs.oracle.com/javase/8/docs/api/java/lang/String.html'
+    assert refs['java.util.List'] == 'https://docs.oracle.com/javase/8/docs/api/java/util/List.html'
 
 
 def test_signature_references(app):
@@ -143,14 +143,14 @@ def test_signature_references(app):
                                                                                           or 'refid' in n)}
     assert refs['Base'] == 'com.example.Base'
     assert refs['Other'] == 'com.example.Other'
-    assert refs['Serializable'] == 'http://docs.oracle.com/javase/8/docs/api/java/io/Serializable.html'
+    assert refs['Serializable'] == 'https://docs.oracle.com/javase/8/docs/api/java/io/Serializable.html'
 
 
 def test_imported_type(build):
     app = build('.. java:import:: java.util List\n\n.. java:method:: List get()\n   :outertype: Foo\n')
     doctree = resolved_doctree(app)
     refs = {ref.astext(): ref['refuri'] for ref in doctree.findall(lambda n: 'refuri' in n)}
-    assert refs['List'] == 'http://docs.oracle.com/javase/8/docs/api/java/util/List.html'
+    assert refs['List'] == 'https://docs.oracle.com/javase/8/docs/api/java/util/List.html'
 
 
 def test_index_entries(app):
@@ -202,7 +202,7 @@ def test_any_reference(build):
 def test_any_reference_external(build):
     app = build(':any:`String`')
     assert warnings(app) == []
-    assert references(app) == {'String': 'http://docs.oracle.com/javase/8/docs/api/java/lang/String.html'}
+    assert references(app) == {'String': 'https://docs.oracle.com/javase/8/docs/api/java/lang/String.html'}
 
 
 def test_duplicate_warning(build):
