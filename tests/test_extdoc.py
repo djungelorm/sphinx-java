@@ -66,7 +66,6 @@ def test_role(build):
     }
 
 
-@pytest.mark.xfail(reason='an unknown target stops the build')
 def test_role_unknown(build):
     app = build(':java:extdoc:`org.other.Foo`')
     assert any('no Javadoc source found for org.other.Foo' in line for line in warnings(app))

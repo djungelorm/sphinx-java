@@ -117,7 +117,8 @@ def javadoc_role(name: str, rawtext: str, text: str, lineno: int, inliner: Inlin
     ref = get_javadoc_ref(config, rawtext, target)
 
     if not ref:
-        raise ValueError(f'no Javadoc source found for {target} in javadoc_url_map')
+        msg = inliner.reporter.warning(f'no Javadoc source found for {target} in javadoc_url_map', line=lineno)
+        return [inliner.problematic(rawtext, rawtext, msg)], [msg]
 
     ref.append(nodes.Text(title))
 
