@@ -22,9 +22,9 @@ from typing import Any, Concatenate
 
 from . import _javalang as javalang
 
-# The order for displaying modifiers
-MODIFIERS_ORDER = ('public', 'protected', 'private', 'default', 'static', 'abstract', 'final', 'sealed',
-                   'non-sealed', 'native', 'synchronized', 'transient', 'volatile', 'strictfp')
+# The order for displaying modifiers, from the Java Language Specification
+MODIFIERS_ORDER = ('public', 'protected', 'private', 'abstract', 'default', 'static', 'final', 'sealed',
+                   'non-sealed', 'transient', 'volatile', 'synchronized', 'native', 'strictfp')
 
 
 class StringBuilder(list[str]):

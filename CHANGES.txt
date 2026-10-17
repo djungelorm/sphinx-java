@@ -30,6 +30,7 @@ v1.0.0
  * Support type annotations and receiver parameters
  * Show the default value of an annotation element
  * Fix a crash on a signature that ends with the number 0
+ * Show modifiers in the order of the Java Language Specification, such as abstract static
  * Ship type hints (py.typed)
 
 javasphinx v0.9.16

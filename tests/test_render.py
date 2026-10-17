@@ -612,3 +612,16 @@ def test_annotation_element_default(build, sig, text):
     app = build(f'.. java:method:: {sig}\n   :outertype: Foo\n', nitpicky=False)
     assert warnings(app) == []
     assert list(signatures(app).values()) == [text or sig]
+
+
+@pytest.mark.parametrize('directive, sig, text', [
+    ('type', 'public static abstract class A', 'public abstract static class A'),
+    ('type', 'abstract static sealed class A permits B', None),
+    ('method', 'public abstract static strictfp void a()', None),
+    ('method', 'public final static synchronized native void a()', 'public static final synchronized native void a()'),
+    ('field', 'protected static final transient volatile int a', None),
+])
+def test_modifier_order(build, directive, sig, text):
+    outertype = '' if directive == 'type' else '\n   :outertype: Foo'
+    app = build(f'.. java:{directive}:: {sig}{outertype}\n', nitpicky=False)
+    assert list(signatures(app).values()) == [text or sig]
