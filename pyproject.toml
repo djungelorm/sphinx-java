@@ -7,14 +7,14 @@ name = "sphinx-java"
 version = "1.0.0rc1"
 description = "Java domain for Sphinx"
 readme = "README.md"
-license = "Apache-2.0"
-license-files = ["LICENSE"]
+license = "Apache-2.0 AND MIT"
+license-files = ["LICENSE", "sphinx_java/_javalang/LICENSE"]
 authors = [
     { name = "djungelorm", email = "djungelorm@users.noreply.github.com" },
     { name = "Chris Thunes" },
 ]
 requires-python = ">=3.11"
-dependencies = ["Sphinx>=7.2", "javalang>=0.13"]
+dependencies = ["Sphinx>=7.2"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",

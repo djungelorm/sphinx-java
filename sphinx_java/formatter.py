@@ -19,7 +19,7 @@ Convert Java syntax tree nodes to string representations.
 
 """
 
-import javalang
+from . import _javalang as javalang
 
 
 

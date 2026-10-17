@@ -14,7 +14,7 @@
 # limitations under the License.
 #
 
-import javalang
+from . import _javalang as javalang
 from docutils import nodes
 from docutils.parsers.rst import Directive, directives
 from sphinx import addnodes, version_info
