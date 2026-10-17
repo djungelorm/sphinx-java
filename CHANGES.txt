@@ -1,0 +1,22 @@
+v1.0.0
+ * Rename the package from javasphinx to sphinx-java, and the extension from javasphinx to sphinx_java
+ * Require Python 3.11+ and Sphinx 7.2+
+ * Remove javasphinx-apidoc and its dependencies
+ * Vendor the javalang parser
+ * Support parallel builds
+ * Show type parameters and primitive types as plain text
+ * Link the package of a qualified type name as one package reference
+ * Fix package references, which linked to a missing target
+ * Resolve an any reference to one Java object
+ * Leave out the leading space of a signature without modifiers
+ * Link to the external docs of a package in javadoc_url_map
+ * Warn about a java:extdoc target with no external docs, instead of stopping the build
+ * Report an error for a field directive that declares several fields
+ * Link to the Java SE docs with https
+ * Ship type hints (py.typed)
+
+javasphinx v0.9.16
+ * An unreleased build, which supports Sphinx 4 and later
+
+javasphinx v0.9.15 and earlier
+ * See https://github.com/bronto/javasphinx

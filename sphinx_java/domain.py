@@ -1,5 +1,6 @@
 #
 # Copyright 2012-2015 Bronto Software, Inc. and contributors
+# Modifications copyright 2026 djungelorm
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
