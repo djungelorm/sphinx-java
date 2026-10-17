@@ -250,6 +250,8 @@ def test_parallel_build(build):
     ('java.util.Map.Entry<String, Integer> first()', 'Foo.first()', 'java.util.Map.Entry<String, Integer> first()'),
     ('Map<String, Integer>.Entry first()', 'Foo.first()', 'Map<String, Integer>.Entry first()'),
     ('String[][] grid(List<?> items)', 'Foo.grid(List)', 'String[][] grid(List<?> items)'),
+    ('default void run()', 'Foo.run()', 'default void run()'),
+    ('public default void run()', 'Foo.run()', 'public default void run()'),
     ('<T extends List<?>> void wildcard(T items)', 'Foo.wildcard(T)', '<T extends List<?>> void wildcard(T items)'),
     ('<T extends Number & Comparable<? super T>> T max()', 'Foo.max()',
      '<T extends Number & Comparable<? super T>> T max()'),

@@ -23,7 +23,7 @@ from typing import Any, Concatenate
 from . import _javalang as javalang
 
 # The order for displaying modifiers
-MODIFIERS_ORDER = ('public', 'protected', 'private', 'static', 'abstract', 'final',
+MODIFIERS_ORDER = ('public', 'protected', 'private', 'default', 'static', 'abstract', 'final',
                    'native', 'synchronized', 'transient', 'volatile', 'strictfp')
 
 
