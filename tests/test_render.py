@@ -61,7 +61,6 @@ def test_signature(app, node_id, text):
     assert signatures(app)[node_id] == text
 
 
-@pytest.mark.xfail(reason='a signature without modifiers starts with a space')
 @pytest.mark.parametrize('node_id, text', [
     ('com.example.Box.getName()', 'String getName()'),
     ('com.example.Box.counts', 'List<? extends Number> counts'),

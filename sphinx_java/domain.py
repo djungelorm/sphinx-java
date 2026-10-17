@@ -150,6 +150,12 @@ class JavaObject(ObjectDescription[str]):
         return paramlist
 
     @staticmethod
+    def _add_modifiers(signode: desc_signature, modifiers: set[str]) -> None:
+        mods = formatter.output_modifiers(modifiers).build()
+        if mods:
+            signode += nodes.Text(mods + ' ')
+
+    @staticmethod
     def _overload_name(member: Any) -> str:
         """ The name of a method or constructor with its parameter types, such as foo(int, List) """
         param_reprs = [formatter.output_type(param.type, with_generics=False).build() for param in member.parameters]
@@ -219,8 +225,7 @@ class JavaMethod(JavaObject):
         if not isinstance(member, javalang.tree.MethodDeclaration):
             raise self.error('expected method declaration')
 
-        mods = formatter.output_modifiers(member.modifiers).build()
-        signode += nodes.Text(mods + ' ')
+        self._add_modifiers(signode, member.modifiers)
 
         if member.type_parameters:
             type_params = formatter.output_type_params(member.type_parameters).build()
@@ -258,8 +263,7 @@ class JavaConstructor(JavaObject):
         if not isinstance(member, javalang.tree.ConstructorDeclaration):
             raise self.error('expected constructor declaration')
 
-        mods = formatter.output_modifiers(member.modifiers).build()
-        signode += nodes.Text(mods + ' ')
+        self._add_modifiers(signode, member.modifiers)
 
         signode += addnodes.desc_name(member.name, member.name)
         signode += self._build_parameter_list(member.parameters)
@@ -293,8 +297,7 @@ class JavaType(JavaObject):
         if self.declaration_type is None:
             raise self.error('expected type declaration')
 
-        mods = formatter.output_modifiers(member.modifiers).build()
-        signode += nodes.Text(mods + ' ')
+        self._add_modifiers(signode, member.modifiers)
 
         keyword = '@interface' if self.declaration_type == 'annotation' else self.declaration_type
         signode += nodes.Text(keyword + ' ')
@@ -338,8 +341,7 @@ class JavaField(JavaObject):
         if not isinstance(member, javalang.tree.FieldDeclaration):
             raise self.error('expected field declaration')
 
-        mods = formatter.output_modifiers(member.modifiers).build()
-        signode += nodes.Text(mods + ' ')
+        self._add_modifiers(signode, member.modifiers)
 
         tnode = addnodes.desc_type('', '')
         tnode += self._build_type_node(member.type)
