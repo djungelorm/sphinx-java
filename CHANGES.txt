@@ -36,6 +36,8 @@ v1.0.0
  * Link the java.lang types added since Java 8, such as FunctionalInterface and Record
  * Fix a syntax error on an array cast in a field initializer, such as (int[]) x
  * Fix a crash on an enum constant with unclosed arguments, such as RED(a
+ * Fix a method reference with several generic parameter types, which linked to a method of the same name with other parameters
+ * Warn about a reference that matches several objects, and resolve it to the first by name in every build
  * Ship type hints (py.typed)
 
 javasphinx v0.9.16

@@ -478,6 +478,46 @@ def _import_qualifier(env: BuildEnvironment, target: str) -> str | None:
     return qualifier
 
 
+def _erase_type_arguments(text: str) -> str:
+    """ The text without type arguments, such as Map for Map<String, List<Integer>> """
+    # Innermost type arguments first
+    while (erased := re.sub(r'<[^<>]*>', '', text)) != text:
+        text = erased
+    return text
+
+
+def _split_parameters(params: str) -> list[str]:
+    """ Split a parameter list at the commas outside type arguments and annotation arguments """
+    parts = []
+    depth = 0
+    start = 0
+    for i, char in enumerate(params):
+        if char in '<(':
+            depth += 1
+        elif char in '>)':
+            depth -= 1
+        elif char == ',' and depth == 0:
+            parts.append(params[start:i])
+            start = i + 1
+    parts.append(params[start:])
+    return [part for part in parts if part.strip()]
+
+
+def _erase_target(target: str) -> str:
+    """ The target without type arguments, with its parameter types written as in the names of methods """
+    name, paren, params = target.partition('(')
+    name = _erase_type_arguments(name)
+    if not paren:
+        return name
+    # Parse the parameter types as a method signature, with a name for each parameter
+    sig = ', '.join(f'{param} p{i}' for i, param in enumerate(_split_parameters(params.removesuffix(')'))))
+    try:
+        member = syntax.parse('method', f'void m({sig})')
+    except JavaSyntaxError:
+        return name + paren + _erase_type_arguments(params)
+    return name + JavaObject._overload_name(member).removeprefix('m')
+
+
 def _type_param_names(member: Declaration) -> frozenset[str]:
     return frozenset(param.name for param in member.type_parameters)
 
@@ -519,13 +559,12 @@ class JavaXRefRole(XRefRole):
 
     def process_link(self, env: BuildEnvironment, refnode: Element, has_explicit_title: bool, title: str,
                      target: str) -> tuple[str, str]:
-        # The type without its type arguments, such as java.util.List for java.util.List<String>
-        target = re.sub(r'<.*>', '', target.lstrip('~'))
+        target = _erase_target(target.lstrip('~'))
         _note_context(env, refnode, target)
 
         # A leading tilde shows only the last component of the name
         if not has_explicit_title and title[0:1] == '~':
-            title = re.sub(r'<.*>', '', title.partition('(')[0])
+            title = _erase_type_arguments(title.partition('(')[0])
             title = title[1:]
             dot = title.rfind('.')
             if dot != -1:
@@ -616,16 +655,21 @@ class JavaDomain(Domain):
             if fullname in objects:
                 return fullname
 
-        # A matching suffix, or failing that the last object with a matching basename
+        # The objects whose names end with the target, or failing that whose basenames do
         suffix = '.' + target
-        basename_suffix = suffix.partition('(')[0]
-        basename_match = None
-        for fullname, (_docname, _objtype, basename) in objects.items():
-            if fullname.endswith(suffix):
-                return fullname
-            if basename.endswith(basename_suffix):
-                basename_match = fullname
-        return basename_match
+        matches = sorted(fullname for fullname in objects if fullname.endswith(suffix))
+        if not matches:
+            basename_suffix = suffix.partition('(')[0]
+            matches = sorted(fullname for fullname, (_docname, _objtype, basename) in objects.items()
+                             if basename.endswith(basename_suffix))
+        if not matches:
+            return None
+
+        # The overloads of one method are one target, which resolves to the first by name
+        if len({objects[fullname][2] for fullname in matches}) > 1:
+            logger.warning(__('more than one target found for cross-reference %r: %s'), target, ', '.join(matches),
+                           type='ref', subtype='java', location=node)
+        return matches[0]
 
     def external_ref(self, config: Config, target: str, node: pending_xref) -> nodes.reference | None:
         """ A reference to the external docs for a target """
@@ -640,26 +684,30 @@ class JavaDomain(Domain):
                 return ref
         return None
 
-    def resolve_xref(self, env: BuildEnvironment, fromdocname: str, builder: Builder, typ: str, target: str,
-                     node: pending_xref, contnode: Element) -> nodes.reference | None:
+    def _resolve(self, env: BuildEnvironment, fromdocname: str, builder: Builder, target: str, node: pending_xref,
+                 contnode: Element) -> tuple[str | None, nodes.reference | None]:
+        """ The full name of the object that a reference points to, and the reference node """
         if node.get('java:plain'):
-            return None
+            return None, None
         fullname = self.find_object(target, node)
         if fullname:
             docname, objtype, _basename = self.objects[fullname]
-            return make_refnode(builder, fromdocname, docname, _anchor(fullname, objtype), contnode, fullname)
+            return fullname, make_refnode(builder, fromdocname, docname, _anchor(fullname, objtype), contnode, fullname)
 
         ref = self.external_ref(env.config, target, node)
         if ref:
             ref.append(contnode)
-        return ref
+        return None, ref
+
+    def resolve_xref(self, env: BuildEnvironment, fromdocname: str, builder: Builder, typ: str, target: str,
+                     node: pending_xref, contnode: Element) -> nodes.reference | None:
+        return self._resolve(env, fromdocname, builder, target, node, contnode)[1]
 
     def resolve_any_xref(self, env: BuildEnvironment, fromdocname: str, builder: Builder, target: str,
                          node: pending_xref, contnode: Element) -> list[tuple[str, nodes.reference]]:
-        ref = self.resolve_xref(env, fromdocname, builder, 'ref', target, node, contnode)
+        fullname, ref = self._resolve(env, fromdocname, builder, target, node, contnode)
         if ref is None:
             return []
-        fullname = self.find_object(target, node)
         role = self.role_for_objtype(self.objects[fullname][1]) if fullname else 'type'
         return [(f'java:{role}', ref)]
 

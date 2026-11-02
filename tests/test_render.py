@@ -249,6 +249,97 @@ def test_parallel_build(build):
     assert references(app) == {'C0': 'page0.html#com.example.C0', 'C3': 'page3.html#com.example.C3'}
 
 
+OVERLOADS = '''
+.. java:package:: pkg
+
+.. java:import:: java.util List
+
+.. java:import:: java.util Map
+
+.. java:type:: public class Drawing
+
+   .. java:method:: void addText(String text, List<Map<String, Integer>> rows, Map<String, int[]> cells, boolean b)
+
+   .. java:method:: void addText(String text)
+
+   .. java:method:: void addAll(Map<String, List<Integer>>[] items, List<String>... names)
+
+.. java:type:: public class Canvas
+
+   .. java:method:: void addText(String text, boolean b)
+
+.. java:type:: public class Panel
+
+   .. java:method:: void addText(String text, boolean b)
+'''
+
+
+@pytest.mark.parametrize('target, refid', [
+    ('addText(String, List<Map<String, Integer>>, Map<String, int[]>, boolean)',
+     'pkg.Drawing.addText(String, List, Map, boolean)'),
+    ('Drawing.addText(String,List<Map<String,Integer>>,Map<String,int[]>,boolean)',
+     'pkg.Drawing.addText(String, List, Map, boolean)'),
+    ('addAll(Map<String, List<Integer>>[], List<String>...)', 'pkg.Drawing.addAll(Map[], List)'),
+    ('Canvas.addText(String,boolean)', 'pkg.Canvas.addText(String, boolean)'),
+    ('addAll', 'pkg.Drawing.addAll(Map[], List)'),
+    ('Drawing.addAll(int x y)', 'pkg.Drawing.addAll(Map[], List)'),
+    ('Drawing.addText', 'pkg.Drawing.addText(String)'),
+])
+def test_method_reference(build, target, refid):
+    app = build(OVERLOADS + f'\n:java:meth:`{target}`\n')
+    assert warnings(app) == []
+    assert references(app)[target] == refid
+
+
+@pytest.mark.parametrize('target, candidates', [
+    ('addText(String, boolean)', ['pkg.Canvas.addText(String, boolean)', 'pkg.Panel.addText(String, boolean)']),
+    ('addText', ['pkg.Canvas.addText(String, boolean)', 'pkg.Drawing.addText(String)',
+                 'pkg.Drawing.addText(String, List, Map, boolean)', 'pkg.Panel.addText(String, boolean)']),
+])
+def test_ambiguous_method_reference(build, target, candidates):
+    app = build(OVERLOADS + f'\n:java:meth:`{target}`\n')
+    assert warnings(app) == [
+        f"{app.srcdir / 'index.rst'}:24: WARNING: more than one target found for cross-reference "
+        f"'{target}': {', '.join(candidates)}",
+    ]
+    assert references(app)[target] == candidates[0]
+
+
+def test_ambiguous_reference_suppressed(build):
+    app = build(OVERLOADS + '\n:java:meth:`addText`\n', suppress_warnings=['ref.java'])
+    assert warnings(app) == []
+
+
+@pytest.mark.parametrize('target', ['addText(String, boolean)', 'addText'])
+def test_reference_independent_of_object_order(build, target):
+    app = build(OVERLOADS)
+    domain = app.env.get_domain('java')
+    node = addnodes.pending_xref('', **{'java:package': 'pkg', 'java:outertype': ''})
+    found = domain.find_object(target, node)
+    domain.data['objects'] = dict(reversed(domain.objects.items()))
+    assert domain.find_object(target, node) == found
+
+
+def test_method_reference_parallel(build):
+    pages = {name: f'.. java:package:: pkg\n\n.. java:type:: public class {name.title()}\n\n'
+                   f'   .. java:method:: void addText(String text, boolean b)\n'
+             for name in ('canvas', 'panel', *(f'page{i}' for i in range(8)))}
+    pages['drawing'] = OVERLOADS.partition('.. java:type:: public class Canvas')[0]
+    pages = {name: f'{name}\n{"=" * len(name)}\n' + page for name, page in pages.items()}
+    rst = ('.. java:package:: pkg\n\n.. java:import:: java.util List\n\n'
+           '.. java:import:: java.util Map\n\n'
+           ':java:meth:`addText(String, List<Map<String, Integer>>, Map<String, int[]>, boolean)`\n\n'
+           '.. toctree::\n   :hidden:\n\n' + ''.join(f'   {name}\n' for name in sorted(pages)))
+    html = []
+    for parallel in (1, 2):
+        app = build(rst, pages=pages, parallel=parallel, freshenv=True)
+        # Note: The second app in a test warns that the Sphinx nodes and directives are already registered.
+        assert [line for line in warnings(app) if 'already registered' not in line] == []
+        html.append((app.outdir / 'index.html').read_text())
+    assert 'drawing.html#pkg.Drawing.addText(String, List, Map, boolean)' in html[0]
+    assert html[0] == html[1]
+
+
 @pytest.mark.parametrize('sig, node_id, text', [
     ('java.util.Map.Entry<String, Integer> first()', 'Foo.first()', 'java.util.Map.Entry<String, Integer> first()'),
     ('Map<String, Integer>.Entry first()', 'Foo.first()', 'Map<String, Integer>.Entry first()'),

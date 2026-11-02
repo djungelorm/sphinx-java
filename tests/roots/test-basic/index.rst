@@ -60,13 +60,17 @@ Java Examples
 .. java:method:: public static void draw(Shape shape)
    :outertype: Canvas
 
+.. java:method:: public static void draw(List<Shape> shapes, Pair<Point, Point> bounds)
+   :outertype: Canvas
+
 References
 ----------
 
 * :java:type:`Shape`, :java:type:`~com.example.shapes.Polygon`,
   :java:meth:`Polygon.contains(S)`, :java:construct:`Polygon(List)`, :java:field:`Polygon.MAX_SIDES`
 * :java:package:`com.example.shapes`
-* :java:ref:`Canvas.draw(Shape) <Canvas.draw(Shape)>`
+* :java:ref:`Canvas.draw(Shape) <Canvas.draw(Shape)>`,
+  :java:meth:`Canvas.draw(List<Shape>, Pair<Point, Point>)`, :java:meth:`Polygon.of(Point...)`
 * :java:type:`String`, :java:type:`List`, :java:type:`Pair`
 * :java:extdoc:`java.util.Map.Entry`, :java:extdoc:`~org.javatuples.Triplet`
 * :any:`Point`
