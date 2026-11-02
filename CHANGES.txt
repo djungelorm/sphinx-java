@@ -39,6 +39,7 @@ v1.0.0
  * Fix a method reference with several generic parameter types, which linked to a method of the same name with other parameters
  * Warn about a reference that matches several objects, and resolve it to the first by name in every build
  * Resolve a reference to an object of a type its role accepts, and to a type over a package of the same name
+ * Warn about a reference to a name with an empty part, such as java.util., instead of stopping the build
  * Ship type hints (py.typed)
 
 javasphinx v0.9.16

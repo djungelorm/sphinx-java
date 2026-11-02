@@ -75,7 +75,8 @@ def test_invalid_java_se_version(build, version):
         build('', javadoc_java_se_version=version)
 
 
-@pytest.mark.parametrize('target', ['org.other.Foo', 'Foo', 'org.examples.Foo', 'java', 'org.xml'])
+@pytest.mark.parametrize('target', ['org.other.Foo', 'Foo', 'org.examples.Foo', 'java', 'org.xml', 'java.util.',
+                                    'java..List'])
 def test_no_source(target):
     assert get_javadoc_ref(config(), target, target) is None
 
@@ -112,6 +113,12 @@ def test_role(build):
 def test_role_unknown(build):
     app = build(':java:extdoc:`org.other.Foo`')
     assert any('no Javadoc source found for org.other.Foo' in line for line in warnings(app))
+
+
+def test_role_empty_part(build):
+    app = build(':java:extdoc:`java.util.`, :java:type:`java.util.`')
+    assert any('no Javadoc source found for java.util.' in line for line in warnings(app))
+    assert any('java:type reference target not found: java.util.' in line for line in warnings(app))
 
 
 def test_config_unchanged(build):

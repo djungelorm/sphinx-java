@@ -107,8 +107,9 @@ def get_javadoc_ref(config: Config, rawtext: str, text: str) -> nodes.reference 
         except ValueError:
             pass
 
+    # A name with an empty part, such as java.util., names no object
     source = _find_source(config, text)
-    if not source:
+    if not source or '' in text.split('.'):
         return None
 
     package_parts = []
