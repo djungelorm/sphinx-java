@@ -2,7 +2,7 @@
 
 ## Overview
 
-sphinx-java is a Sphinx extension that adds a `java` domain for documenting Java APIs. Users enable it with `extensions = ['sphinx_java']` in their `conf.py`. It is a fork of javasphinx 0.9.16 without `javasphinx-apidoc`, and keeps the javasphinx directive, role and config names so existing docs keep working.
+sphinx-java is a Sphinx extension that adds a `java` domain for documenting Java APIs. Users enable it with `extensions = ['sphinx_java']` in their `conf.py`. It is a continuation of javasphinx 0.9.16 without `javasphinx-apidoc`, and keeps the javasphinx directive, role and config names so existing docs keep working.
 
 Supported targets: Python 3.11 and later, Sphinx 7.2 and later. The hatch test environments cover every Python from 3.11 to 3.15, and each Sphinx minor version from 7.2 to 9.2.
 
@@ -42,7 +42,8 @@ To check a new feature, add rendering checks to `tests/test_render.py` and a dir
 - Use `_()` from `sphinx.locale` for translatable strings, and `__()` for log messages.
 - Code must pass `hatch run lint:check` and `hatch run types:check`. The ruff and mypy settings are in `pyproject.toml`.
 - Annotate all functions in `sphinx_java`. The package ships `py.typed`.
-- The javasphinx files keep their Apache license header. Releases bump the version in `pyproject.toml` and add an entry to `CHANGES.txt`.
+- Every Python file in `sphinx_java` starts with the Apache license header. A new file has `Copyright <year> djungelorm`, as in `syntax.py`. A javasphinx file keeps the Bronto copyright and adds `Modifications copyright <year> djungelorm`.
+- Releases bump the version in `pyproject.toml` and add an entry to `CHANGES.txt`.
 
 ## Writing
 
