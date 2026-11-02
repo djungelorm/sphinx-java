@@ -2,6 +2,8 @@
 
 A Sphinx domain for documenting Java APIs. It is a continuation of [javasphinx](https://github.com/bronto/javasphinx), which is no longer maintained, without the `javasphinx-apidoc` tool.
 
+With sphinx-java, you write the API docs with directives in your `.rst` files. To generate the API docs from your Java sources and Javadoc comments, see [sphinx-java-autodoc](https://pypi.org/project/sphinx-java-autodoc/). It runs a JDK during the docs build.
+
 ## Usage
 
 Install using pip:
