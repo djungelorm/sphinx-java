@@ -1,6 +1,7 @@
 """ Write sphinx_java/javase.py from the element lists and java.lang package summaries of the Java SE docs """
 
 import argparse
+import itertools
 import re
 import urllib.request
 from pathlib import Path
@@ -47,7 +48,9 @@ def main() -> None:
                 raise SystemExit(f'{package} is in {packages[package]} and {module}')
         types |= java_lang_types(version)
 
-    lines = [f'""" Java SE {", ".join(map(str, versions))} names, from scripts/javase.py """', '',
+    # The license header of the existing file
+    lines = [*itertools.takewhile(lambda line: line.startswith('#'), OUTPUT.read_text().splitlines()), '']
+    lines += [f'""" Java SE {", ".join(map(str, versions))} names, from scripts/javase.py """', '',
              '# The module of each package', 'JAVA_SE_MODULES = {']
     lines += [f"    '{package}': '{packages[package]}'," for package in sorted(packages)]
     lines += ['}', '', '# The top-level types in java.lang', 'JAVA_LANG_TYPES = frozenset({']
