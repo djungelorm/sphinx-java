@@ -315,9 +315,41 @@ def test_reference_independent_of_object_order(build, target):
     app = build(OVERLOADS)
     domain = app.env.get_domain('java')
     node = addnodes.pending_xref('', **{'java:package': 'pkg', 'java:outertype': ''})
-    found = domain.find_object(target, node)
+    found = domain.find_object(target, node, ['method'])
     domain.data['objects'] = dict(reversed(domain.objects.items()))
-    assert domain.find_object(target, node) == found
+    assert domain.find_object(target, node, ['method']) == found
+
+
+SAME_NAME = '''
+.. java:package:: lib.Engine
+
+.. java:type:: public class Engine
+
+   .. java:type:: public static class Part
+
+.. java:package:: lib.Other
+
+.. java:method:: void attach(Engine.Part part)
+   :outertype: Tool
+'''
+
+
+@pytest.mark.parametrize('rst, refid', [
+    (':java:type:`Engine`', 'lib.Engine.Engine'),
+    (':java:ref:`Engine`', 'lib.Engine.Engine'),
+    (':any:`Engine`', 'lib.Engine.Engine'),
+    (':java:package:`Engine`', 'package-lib.Engine'),
+])
+def test_package_and_type_of_same_name(build, rst, refid):
+    app = build(SAME_NAME + '\n' + rst + '\n')
+    assert warnings(app) == []
+    assert references(app) == {'Engine': refid, 'Part': 'lib.Engine.Engine.Part'}
+
+
+def test_package_and_type_of_same_name_in_signature(build):
+    app = build(SAME_NAME)
+    assert warnings(app) == []
+    assert references(app) == {'Engine': 'lib.Engine.Engine', 'Part': 'lib.Engine.Engine.Part'}
 
 
 def test_method_reference_parallel(build):

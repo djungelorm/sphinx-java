@@ -640,9 +640,9 @@ class JavaDomain(Domain):
     def process_field_xref(self, pnode: pending_xref) -> None:
         _note_context(self.env, pnode, pnode['reftarget'])
 
-    def find_object(self, target: str, node: pending_xref) -> str | None:
-        """ The full name of the object that a reference points to """
-        objects = self.objects
+    def find_object(self, target: str, node: pending_xref, objtypes: list[str]) -> str | None:
+        """ The full name of the object of one of the given types that a reference points to """
+        objects = {fullname: data for fullname, data in self.objects.items() if data[1] in objtypes}
         package = node.get('java:package')
         type_context = node.get('java:outertype')
 
@@ -665,6 +665,11 @@ class JavaDomain(Domain):
         if not matches:
             return None
 
+        # A type obscures a package of the same name (JLS 6.4.2)
+        types = [fullname for fullname in matches if objects[fullname][1] != 'package']
+        if types:
+            matches = types
+
         # The overloads of one method are one target, which resolves to the first by name
         if len({objects[fullname][2] for fullname in matches}) > 1:
             logger.warning(__('more than one target found for cross-reference %r: %s'), target, ', '.join(matches),
@@ -684,12 +689,12 @@ class JavaDomain(Domain):
                 return ref
         return None
 
-    def _resolve(self, env: BuildEnvironment, fromdocname: str, builder: Builder, target: str, node: pending_xref,
-                 contnode: Element) -> tuple[str | None, nodes.reference | None]:
+    def _resolve(self, env: BuildEnvironment, fromdocname: str, builder: Builder, typ: str, target: str,
+                 node: pending_xref, contnode: Element) -> tuple[str | None, nodes.reference | None]:
         """ The full name of the object that a reference points to, and the reference node """
         if node.get('java:plain'):
             return None, None
-        fullname = self.find_object(target, node)
+        fullname = self.find_object(target, node, self.objtypes_for_role(typ) or [])
         if fullname:
             docname, objtype, _basename = self.objects[fullname]
             return fullname, make_refnode(builder, fromdocname, docname, _anchor(fullname, objtype), contnode, fullname)
@@ -701,11 +706,11 @@ class JavaDomain(Domain):
 
     def resolve_xref(self, env: BuildEnvironment, fromdocname: str, builder: Builder, typ: str, target: str,
                      node: pending_xref, contnode: Element) -> nodes.reference | None:
-        return self._resolve(env, fromdocname, builder, target, node, contnode)[1]
+        return self._resolve(env, fromdocname, builder, typ, target, node, contnode)[1]
 
     def resolve_any_xref(self, env: BuildEnvironment, fromdocname: str, builder: Builder, target: str,
                          node: pending_xref, contnode: Element) -> list[tuple[str, nodes.reference]]:
-        fullname, ref = self._resolve(env, fromdocname, builder, target, node, contnode)
+        fullname, ref = self._resolve(env, fromdocname, builder, 'ref', target, node, contnode)
         if ref is None:
             return []
         role = self.role_for_objtype(self.objects[fullname][1]) if fullname else 'type'
