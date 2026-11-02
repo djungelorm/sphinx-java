@@ -4,7 +4,7 @@
 
 sphinx-java is a Sphinx extension that adds a `java` domain for documenting Java APIs. Users enable it with `extensions = ['sphinx_java']` in their `conf.py`. It is a fork of javasphinx 0.9.16 without `javasphinx-apidoc`, and keeps the javasphinx directive, role and config names so existing docs keep working.
 
-Supported targets: Python 3.11 and later, Sphinx 7.2 and later. The hatch test environments cover every Python from 3.11 to 3.15, and each Sphinx minor version from 7.2 to 9.1.
+Supported targets: Python 3.11 and later, Sphinx 7.2 and later. The hatch test environments cover every Python from 3.11 to 3.15, and each Sphinx minor version from 7.2 to 9.2.
 
 ## Commands
 
@@ -13,7 +13,7 @@ hatch run lint:check                   # ruff on sphinx_java, tests and scripts
 hatch run types:check                  # mypy in strict mode on sphinx_java
 hatch run matrix:all                   # pytest with coverage in every test environment, in parallel
 hatch run matrix:all --python 3.14     # every test environment for one Python
-hatch run test.py3.14-9.1:all -k extdoc   # selected tests in one environment
+hatch run test.py3.14-9.2:all -k extdoc   # selected tests in one environment
 hatch build                            # build sdist and wheel into dist/
 ```
 
