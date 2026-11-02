@@ -11,6 +11,7 @@ v1.0.0
  * Leave out the leading space of a signature without modifiers
  * Link to the external docs of a package in javadoc_url_map
  * Warn about a java:extdoc target with no external docs, instead of stopping the build
+ * Report an error for an unknown docs type in javadoc_url_map when the build starts
  * Report an error for a field directive that declares several fields
  * Report a syntax error for an unterminated literal or a signature that ends early, instead of stopping the build
  * Link to the Java SE docs with https

@@ -32,11 +32,17 @@ from .javase import JAVA_SE_MODULES
 # The Java SE packages, which link to the Java SE docs unless javadoc_url_map has them
 JAVA_SE_PACKAGES = ('java', 'javax', 'org.ietf', 'org.xml', 'org.w3c')
 
+DOCS_TYPES = ('javadoc', 'javadoc8', 'javadoc11', 'sphinx')
+
 
 def check_config(app: Sphinx, config: Config) -> None:
     version = config.javadoc_java_se_version
     if version != 8 and version < 11:
         raise ConfigError(__('javadoc_java_se_version must be 8, or 11 or later, not %r') % version)
+    for package, source in config.javadoc_url_map.items():
+        if source and source[1] not in DOCS_TYPES:
+            raise ConfigError(__('javadoc_url_map has an unknown docs type %r for %s, expected one of %s')
+                              % (source[1], package, ', '.join(DOCS_TYPES)))
 
 
 def _java_se_docs(version: int) -> tuple[str, str]:
@@ -85,12 +91,10 @@ def _build_url(baseurl: str, ext_type: str, package: str, cls: str, method: str 
         url = path + (cls or 'package-summary') + '.html'
         if method:
             url += '#' + _javadoc_anchor(ext_type, cls, method)
-    elif ext_type == 'sphinx':
+    else:
         url = path + (cls.replace('.', '-') or 'package-index') + '.html'
         if method:
             url += '#' + package + '.' + (cls or 'package-index') + '.' + method
-    else:
-        raise ValueError('invalid target specifier ' + ext_type)
     return url
 
 

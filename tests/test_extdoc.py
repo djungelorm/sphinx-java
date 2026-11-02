@@ -94,9 +94,9 @@ def test_override_java_se():
     assert ref['refuri'] == 'https://docs.example.com/api/java/util/List.html'
 
 
-def test_invalid_type():
-    with pytest.raises(ValueError, match='invalid target specifier other'):
-        get_javadoc_ref(config({'org': ('https://example.org', 'other')}), 'org.Foo', 'org.Foo')
+def test_invalid_type(build):
+    with pytest.raises(ConfigError, match="javadoc_url_map has an unknown docs type 'other' for org"):
+        build('', javadoc_url_map={'org': ('https://example.org', 'other')})
 
 
 def test_role(build):
