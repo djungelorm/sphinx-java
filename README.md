@@ -1,6 +1,6 @@
 # sphinx-java
 
-A Sphinx domain for documenting Java APIs. It is a fork of [javasphinx](https://github.com/bronto/javasphinx) without the `javasphinx-apidoc` tool. javasphinx is no longer maintained.
+A Sphinx domain for documenting Java APIs. It is a continuation of [javasphinx](https://github.com/bronto/javasphinx), which is no longer maintained, without the `javasphinx-apidoc` tool.
 
 ## Usage
 
